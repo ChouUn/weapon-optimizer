@@ -1,0 +1,30 @@
+# ============================================================================
+# 来自开源社区的规则
+# Source: https://editorconfig.org/#example-file
+# 参考官方示例与属性说明，固定独立项目边界及通用文本保存规则。
+# ============================================================================
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+trim_trailing_whitespace = true
+
+# ============================================================================
+# 本项目规则
+# ============================================================================
+
+# 沿用现有 Python 与 pyproject.toml 的四空格缩进。
+[*.{py,toml}]
+indent_size = 4
+
+# 已保存的 JSON 示例使用两空格缩进。
+[*.json]
+indent_size = 2
+
+# Markdown 行尾空格可能表示硬换行，不自动删除。
+[*.md]
+trim_trailing_whitespace = false

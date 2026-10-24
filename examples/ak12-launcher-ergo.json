@@ -1,0 +1,1026 @@
+{
+  "schema_version": 1,
+  "status": "optimal",
+  "weapon": {
+    "template_id": "6499849fc93611967b034949",
+    "name": "Kalashnikov AK-12 5.45x39 assault rifle"
+  },
+  "source": {
+    "kind": "runtime-get",
+    "server": "https://127.0.0.1:6969",
+    "locale": "en",
+    "started_at": "2026-10-24T19:03:53.948250+00:00",
+    "completed_at": "2026-10-24T19:03:56.231438+00:00",
+    "hash_format": "sha256 of UTF-8 JSON, sorted keys, compact separators, ensure_ascii=false",
+    "items": {
+      "endpoint": "/client/items",
+      "retrieved_at": "2026-10-24T19:03:55.219699+00:00",
+      "sha256": "139551e0d60237915ebe39fe3ef170f168088383f061001ebd41880fec2797cd"
+    },
+    "locale_data": {
+      "endpoint": "/client/locale/en",
+      "retrieved_at": "2026-10-24T19:03:56.152844+00:00",
+      "sha256": "90c5d488ca21dbc1dfaf73d577bae8f64537d20ef69c2d727a5b66e19b8ca883"
+    },
+    "item_count": 7084,
+    "locale_entry_count": 39805,
+    "consistency": "two sequential GET responses; not a server-atomic snapshot",
+    "snapshot_created_at": "2026-10-24T19:03:56.343561+00:00",
+    "content_sha256": {
+      "items": "139551e0d60237915ebe39fe3ef170f168088383f061001ebd41880fec2797cd",
+      "locale": "90c5d488ca21dbc1dfaf73d577bae8f64537d20ef69c2d727a5b66e19b8ca883"
+    }
+  },
+  "objective": {
+    "kind": "ergo",
+    "recoil_weight": "1",
+    "ergo_weight": "1",
+    "score_formula": "recoil_weight * recoil_reduction_percent + ergo_weight * min(100, ergonomics_raw)",
+    "numeric_model": "exact template decimals; excludes IEEE-754 accumulation noise"
+  },
+  "constraints": {
+    "min_capacity": 30,
+    "launcher": "required",
+    "state": "unfolded, unloaded; no ammunition, skill, durability or dynamic recoil modifiers"
+  },
+  "search": {
+    "mode": "top",
+    "requested_solutions": 2,
+    "returned_solutions": 2,
+    "ranking_proven": true,
+    "exhausted": false,
+    "elapsed_seconds": 39.797,
+    "reachable_templates": 723,
+    "attachment_positions": 172,
+    "selection_variables": 2707,
+    "conflict_pairs": 886
+  },
+  "solutions": [
+    {
+      "rank": 1,
+      "build": {
+        "template_id": "6499849fc93611967b034949",
+        "name": "Kalashnikov AK-12 5.45x39 assault rifle",
+        "slot": null,
+        "children": [
+          {
+            "template_id": "6130ca3fd92c473c77020dbd",
+            "name": "AK CSS knurled charging handle",
+            "slot": "mod_charge",
+            "children": []
+          },
+          {
+            "template_id": "649ec107961514b22506b10c",
+            "name": "AK-12 gas tube",
+            "slot": "mod_gas_block",
+            "children": []
+          },
+          {
+            "template_id": "682315c58639961c6001dbe7",
+            "name": "AK-12 Zenit Sport-12 handguard",
+            "slot": "mod_handguard",
+            "children": [
+              {
+                "template_id": "682317428639961c6001dbf1",
+                "name": "Zenit B-2U rail",
+                "slot": "mod_foregrip",
+                "children": [
+                  {
+                    "template_id": "6984b690b457c5047e0c01fa",
+                    "name": "IRBIS-GUN 30AL Foregrip",
+                    "slot": "mod_foregrip",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "template_id": "682317390ee6ef08a60e4547",
+                "name": "Zenit B-2 rail",
+                "slot": "mod_mount_000",
+                "children": [
+                  {
+                    "template_id": "672e2e75ebb3b5f3e2cb6291",
+                    "name": "Lwrci Railskin FDE",
+                    "slot": "mod_tactical",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "template_id": "682317390ee6ef08a60e4547",
+                "name": "Zenit B-2 rail",
+                "slot": "mod_mount_001",
+                "children": [
+                  {
+                    "template_id": "672e2e7511180730151307bc",
+                    "name": "KAC Rail Cover",
+                    "slot": "mod_tactical",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "template_id": "682317390ee6ef08a60e4547",
+                "name": "Zenit B-2 rail",
+                "slot": "mod_mount_002",
+                "children": [
+                  {
+                    "template_id": "672e2e75645f9ad09f4b949d",
+                    "name": "Lwrci Railskin OD",
+                    "slot": "mod_tactical",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "template_id": "682315d08639961c6001dbec",
+                "name": "AK-12 Zenit Sport-12 handguard cover",
+                "slot": "mod_mount_003",
+                "children": [
+                  {
+                    "template_id": "682317390ee6ef08a60e4547",
+                    "name": "Zenit B-2 rail",
+                    "slot": "mod_mount_000",
+                    "children": [
+                      {
+                        "template_id": "672e2e75645f9ad09f4b949d",
+                        "name": "Lwrci Railskin OD",
+                        "slot": "mod_tactical",
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "template_id": "682317390ee6ef08a60e4547",
+                    "name": "Zenit B-2 rail",
+                    "slot": "mod_mount_001",
+                    "children": [
+                      {
+                        "template_id": "672e2e75645f9ad09f4b949d",
+                        "name": "Lwrci Railskin OD",
+                        "slot": "mod_tactical",
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "template_id": "5648b62b4bdc2d9d488b4585",
+            "name": "GP-34 40mm underbarrel grenade launcher",
+            "slot": "mod_launcher",
+            "children": []
+          },
+          {
+            "template_id": "5aaa4194e5b5b055d06310a5",
+            "name": "AK-74 5.45x39 Magpul PMAG 30 GEN M3 30-round magazine",
+            "slot": "mod_magazine",
+            "children": []
+          },
+          {
+            "template_id": "68235b0b7d3ccc3ca20f4d01",
+            "name": "AK-12 BRT M24 thread muzzle adapter",
+            "slot": "mod_muzzle",
+            "children": [
+              {
+                "template_id": "65f119212ffe657478130322",
+                "name": "AK CNC Warrior 7.62mm muzzle device adapter",
+                "slot": "mod_muzzle",
+                "children": [
+                  {
+                    "template_id": "612e0d3767085e45ef14057f",
+                    "name": "AR-10 AWC PSR 7.62x51 muzzle brake",
+                    "slot": "mod_muzzle",
+                    "children": [
+                      {
+                        "template_id": "612e0e04568c120fdd294258",
+                        "name": "AWC PSR muzzle brake protector",
+                        "slot": "mod_muzzle",
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "template_id": "6087e663132d4d12c81fd96b",
+            "name": "AK Custom Arms AGS-74 PRO + Sniper Kit pistol grip",
+            "slot": "mod_pistol_grip",
+            "children": []
+          },
+          {
+            "template_id": "649ec2f3961514b22506b111",
+            "name": "AK-12 railed dust cover",
+            "slot": "mod_reciever",
+            "children": [
+              {
+                "template_id": "befd7a2bbc07793f73133f2c",
+                "name": "Unity Tactical FAST LPVO 30mm ring scope mount",
+                "slot": "mod_scope",
+                "children": []
+              },
+              {
+                "template_id": "5beec9450db83400970084fd",
+                "name": "RPK-16 rear sight base",
+                "slot": "mod_sight_rear",
+                "children": [
+                  {
+                    "template_id": "628a7b23b0f75035732dd565",
+                    "name": "AK RD Enhanced V2 Rear Sight",
+                    "slot": "mod_sight_rear",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "template_id": "6981ee9cf819a414310292fb",
+            "name": "AK-74M Armacon Monolit 3 Gen.2 buffer tube adapter (Redline)",
+            "slot": "mod_stock_001",
+            "children": [
+              {
+                "template_id": "5c793fc42e221600114ca25d",
+                "name": "AR-15 Strike Industries Advanced Receiver Extension buffer tube (Anodized Red)",
+                "slot": "mod_stock",
+                "children": [
+                  {
+                    "template_id": "672e2e7533a70f23dfe4c8bb",
+                    "name": "MAGPUL MOE SL-M FDE",
+                    "slot": "mod_stock_000",
+                    "children": []
+                  },
+                  {
+                    "template_id": "698b338649b46ae2d0092e82",
+                    "name": "AR-15 Phase5 Universal Mini Stock",
+                    "slot": "mod_stock_003",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "stats": {
+        "recoil_modifier_percent": -56.0,
+        "recoil_vertical": 44.0,
+        "recoil_horizontal": 132.88,
+        "recoil_total": 176.88,
+        "ergonomics_raw": 100.3,
+        "ergonomics_effective": 100.0,
+        "magazine_capacity": 30,
+        "has_launcher": true,
+        "part_count": 31,
+        "parts": [
+          {
+            "template_id": "6130ca3fd92c473c77020dbd",
+            "slot": "mod_charge",
+            "path": "6499849fc93611967b034949/mod_charge",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 3.0
+          },
+          {
+            "template_id": "649ec107961514b22506b10c",
+            "slot": "mod_gas_block",
+            "path": "6499849fc93611967b034949/mod_gas_block",
+            "is_mod": true,
+            "recoil_modifier_percent": -1.0,
+            "ergonomics_modifier": 0.0
+          },
+          {
+            "template_id": "682315c58639961c6001dbe7",
+            "slot": "mod_handguard",
+            "path": "6499849fc93611967b034949/mod_handguard",
+            "is_mod": true,
+            "recoil_modifier_percent": -0.5,
+            "ergonomics_modifier": 4.0
+          },
+          {
+            "template_id": "682317428639961c6001dbf1",
+            "slot": "mod_foregrip",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_foregrip",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": -0.2
+          },
+          {
+            "template_id": "6984b690b457c5047e0c01fa",
+            "slot": "mod_foregrip",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_foregrip/mod_foregrip",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 12.0
+          },
+          {
+            "template_id": "682317390ee6ef08a60e4547",
+            "slot": "mod_mount_000",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_000",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": -0.1
+          },
+          {
+            "template_id": "672e2e75ebb3b5f3e2cb6291",
+            "slot": "mod_tactical",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_000/mod_tactical",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 3.0
+          },
+          {
+            "template_id": "682317390ee6ef08a60e4547",
+            "slot": "mod_mount_001",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_001",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": -0.1
+          },
+          {
+            "template_id": "672e2e7511180730151307bc",
+            "slot": "mod_tactical",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_001/mod_tactical",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 3.0
+          },
+          {
+            "template_id": "682317390ee6ef08a60e4547",
+            "slot": "mod_mount_002",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_002",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": -0.1
+          },
+          {
+            "template_id": "672e2e75645f9ad09f4b949d",
+            "slot": "mod_tactical",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_002/mod_tactical",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 3.0
+          },
+          {
+            "template_id": "682315d08639961c6001dbec",
+            "slot": "mod_mount_003",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_003",
+            "is_mod": true,
+            "recoil_modifier_percent": -0.5,
+            "ergonomics_modifier": 6.0
+          },
+          {
+            "template_id": "682317390ee6ef08a60e4547",
+            "slot": "mod_mount_000",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_003/mod_mount_000",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": -0.1
+          },
+          {
+            "template_id": "672e2e75645f9ad09f4b949d",
+            "slot": "mod_tactical",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_003/mod_mount_000/mod_tactical",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 3.0
+          },
+          {
+            "template_id": "682317390ee6ef08a60e4547",
+            "slot": "mod_mount_001",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_003/mod_mount_001",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": -0.1
+          },
+          {
+            "template_id": "672e2e75645f9ad09f4b949d",
+            "slot": "mod_tactical",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_003/mod_mount_001/mod_tactical",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 3.0
+          },
+          {
+            "template_id": "5648b62b4bdc2d9d488b4585",
+            "slot": "mod_launcher",
+            "path": "6499849fc93611967b034949/mod_launcher",
+            "is_mod": true,
+            "recoil_modifier_percent": -8.0,
+            "ergonomics_modifier": -32.0
+          },
+          {
+            "template_id": "5aaa4194e5b5b055d06310a5",
+            "slot": "mod_magazine",
+            "path": "6499849fc93611967b034949/mod_magazine",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": -1.5
+          },
+          {
+            "template_id": "68235b0b7d3ccc3ca20f4d01",
+            "slot": "mod_muzzle",
+            "path": "6499849fc93611967b034949/mod_muzzle",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": -0.5
+          },
+          {
+            "template_id": "65f119212ffe657478130322",
+            "slot": "mod_muzzle",
+            "path": "6499849fc93611967b034949/mod_muzzle/mod_muzzle",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 0.0
+          },
+          {
+            "template_id": "612e0d3767085e45ef14057f",
+            "slot": "mod_muzzle",
+            "path": "6499849fc93611967b034949/mod_muzzle/mod_muzzle/mod_muzzle",
+            "is_mod": true,
+            "recoil_modifier_percent": -7.0,
+            "ergonomics_modifier": -1.0
+          },
+          {
+            "template_id": "612e0e04568c120fdd294258",
+            "slot": "mod_muzzle",
+            "path": "6499849fc93611967b034949/mod_muzzle/mod_muzzle/mod_muzzle/mod_muzzle",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 2.0
+          },
+          {
+            "template_id": "6087e663132d4d12c81fd96b",
+            "slot": "mod_pistol_grip",
+            "path": "6499849fc93611967b034949/mod_pistol_grip",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 14.0
+          },
+          {
+            "template_id": "649ec2f3961514b22506b111",
+            "slot": "mod_reciever",
+            "path": "6499849fc93611967b034949/mod_reciever",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 7.0
+          },
+          {
+            "template_id": "befd7a2bbc07793f73133f2c",
+            "slot": "mod_scope",
+            "path": "6499849fc93611967b034949/mod_reciever/mod_scope",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 2.0
+          },
+          {
+            "template_id": "5beec9450db83400970084fd",
+            "slot": "mod_sight_rear",
+            "path": "6499849fc93611967b034949/mod_reciever/mod_sight_rear",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 0.0
+          },
+          {
+            "template_id": "628a7b23b0f75035732dd565",
+            "slot": "mod_sight_rear",
+            "path": "6499849fc93611967b034949/mod_reciever/mod_sight_rear/mod_sight_rear",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 1.0
+          },
+          {
+            "template_id": "6981ee9cf819a414310292fb",
+            "slot": "mod_stock_001",
+            "path": "6499849fc93611967b034949/mod_stock_001",
+            "is_mod": true,
+            "recoil_modifier_percent": -0.5,
+            "ergonomics_modifier": -1.0
+          },
+          {
+            "template_id": "5c793fc42e221600114ca25d",
+            "slot": "mod_stock",
+            "path": "6499849fc93611967b034949/mod_stock_001/mod_stock",
+            "is_mod": true,
+            "recoil_modifier_percent": -2.0,
+            "ergonomics_modifier": 2.0
+          },
+          {
+            "template_id": "672e2e7533a70f23dfe4c8bb",
+            "slot": "mod_stock_000",
+            "path": "6499849fc93611967b034949/mod_stock_001/mod_stock/mod_stock_000",
+            "is_mod": true,
+            "recoil_modifier_percent": -18.0,
+            "ergonomics_modifier": 13.0
+          },
+          {
+            "template_id": "698b338649b46ae2d0092e82",
+            "slot": "mod_stock_003",
+            "path": "6499849fc93611967b034949/mod_stock_001/mod_stock/mod_stock_003",
+            "is_mod": true,
+            "recoil_modifier_percent": -18.5,
+            "ergonomics_modifier": 20.0
+          }
+        ]
+      },
+      "score": 156.0,
+      "proof": {
+        "status": "optimal",
+        "scope": "all_builds",
+        "objective_value": 100.0,
+        "best_bound": 100.0,
+        "gap": 0.0,
+        "original_global_optimum": true,
+        "tie_break_proven": true,
+        "minimal_parts_proven": true
+      }
+    },
+    {
+      "rank": 2,
+      "build": {
+        "template_id": "6499849fc93611967b034949",
+        "name": "Kalashnikov AK-12 5.45x39 assault rifle",
+        "slot": null,
+        "children": [
+          {
+            "template_id": "6130ca3fd92c473c77020dbd",
+            "name": "AK CSS knurled charging handle",
+            "slot": "mod_charge",
+            "children": []
+          },
+          {
+            "template_id": "649ec107961514b22506b10c",
+            "name": "AK-12 gas tube",
+            "slot": "mod_gas_block",
+            "children": []
+          },
+          {
+            "template_id": "682315c58639961c6001dbe7",
+            "name": "AK-12 Zenit Sport-12 handguard",
+            "slot": "mod_handguard",
+            "children": [
+              {
+                "template_id": "682317428639961c6001dbf1",
+                "name": "Zenit B-2U rail",
+                "slot": "mod_foregrip",
+                "children": [
+                  {
+                    "template_id": "6984b690b457c5047e0c01fa",
+                    "name": "IRBIS-GUN 30AL Foregrip",
+                    "slot": "mod_foregrip",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "template_id": "682317390ee6ef08a60e4547",
+                "name": "Zenit B-2 rail",
+                "slot": "mod_mount_000",
+                "children": [
+                  {
+                    "template_id": "672e2e75ebb3b5f3e2cb6291",
+                    "name": "Lwrci Railskin FDE",
+                    "slot": "mod_tactical",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "template_id": "682317390ee6ef08a60e4547",
+                "name": "Zenit B-2 rail",
+                "slot": "mod_mount_001",
+                "children": [
+                  {
+                    "template_id": "672e2e7511180730151307bc",
+                    "name": "KAC Rail Cover",
+                    "slot": "mod_tactical",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "template_id": "682317390ee6ef08a60e4547",
+                "name": "Zenit B-2 rail",
+                "slot": "mod_mount_002",
+                "children": [
+                  {
+                    "template_id": "672e2e7511180730151307bc",
+                    "name": "KAC Rail Cover",
+                    "slot": "mod_tactical",
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "template_id": "682315d08639961c6001dbec",
+                "name": "AK-12 Zenit Sport-12 handguard cover",
+                "slot": "mod_mount_003",
+                "children": [
+                  {
+                    "template_id": "682317390ee6ef08a60e4547",
+                    "name": "Zenit B-2 rail",
+                    "slot": "mod_mount_000",
+                    "children": [
+                      {
+                        "template_id": "672e2e75645f9ad09f4b949d",
+                        "name": "Lwrci Railskin OD",
+                        "slot": "mod_tactical",
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "template_id": "682317390ee6ef08a60e4547",
+                    "name": "Zenit B-2 rail",
+                    "slot": "mod_mount_001",
+                    "children": [
+                      {
+                        "template_id": "672e2e75645f9ad09f4b949d",
+                        "name": "Lwrci Railskin OD",
+                        "slot": "mod_tactical",
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "template_id": "5648b62b4bdc2d9d488b4585",
+            "name": "GP-34 40mm underbarrel grenade launcher",
+            "slot": "mod_launcher",
+            "children": []
+          },
+          {
+            "template_id": "68d566b2aa07af2e14059e01",
+            "name": "AK-74 5.45x39 Magpul PMAG 30 GEN M3 30-round magazine (FDE)",
+            "slot": "mod_magazine",
+            "children": []
+          },
+          {
+            "template_id": "68235b0b7d3ccc3ca20f4d01",
+            "name": "AK-12 BRT M24 thread muzzle adapter",
+            "slot": "mod_muzzle",
+            "children": [
+              {
+                "template_id": "65f119212ffe657478130322",
+                "name": "AK CNC Warrior 7.62mm muzzle device adapter",
+                "slot": "mod_muzzle",
+                "children": [
+                  {
+                    "template_id": "612e0d3767085e45ef14057f",
+                    "name": "AR-10 AWC PSR 7.62x51 muzzle brake",
+                    "slot": "mod_muzzle",
+                    "children": [
+                      {
+                        "template_id": "612e0e04568c120fdd294258",
+                        "name": "AWC PSR muzzle brake protector",
+                        "slot": "mod_muzzle",
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "template_id": "6087e663132d4d12c81fd96b",
+            "name": "AK Custom Arms AGS-74 PRO + Sniper Kit pistol grip",
+            "slot": "mod_pistol_grip",
+            "children": []
+          },
+          {
+            "template_id": "649ec2f3961514b22506b111",
+            "name": "AK-12 railed dust cover",
+            "slot": "mod_reciever",
+            "children": [
+              {
+                "template_id": "c26f2af872656829feb27c08",
+                "name": "Unity Tactical FAST Micro Mount, 2.26 (FDE)",
+                "slot": "mod_scope",
+                "children": []
+              },
+              {
+                "template_id": "5beec9450db83400970084fd",
+                "name": "RPK-16 rear sight base",
+                "slot": "mod_sight_rear",
+                "children": [
+                  {
+                    "template_id": "628a7b23b0f75035732dd565",
+                    "name": "AK RD Enhanced V2 Rear Sight",
+                    "slot": "mod_sight_rear",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "template_id": "6981ee9cf819a414310292fb",
+            "name": "AK-74M Armacon Monolit 3 Gen.2 buffer tube adapter (Redline)",
+            "slot": "mod_stock_001",
+            "children": [
+              {
+                "template_id": "5c793fc42e221600114ca25d",
+                "name": "AR-15 Strike Industries Advanced Receiver Extension buffer tube (Anodized Red)",
+                "slot": "mod_stock",
+                "children": [
+                  {
+                    "template_id": "672e2e75b7f83e81f1dc5067",
+                    "name": "MAGPUL MOE SL-M",
+                    "slot": "mod_stock_000",
+                    "children": []
+                  },
+                  {
+                    "template_id": "698b3592e700c6d632003753",
+                    "name": "AR-15 Phase5 Universal Mini Stock (Yellow)",
+                    "slot": "mod_stock_003",
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "stats": {
+        "recoil_modifier_percent": -56.0,
+        "recoil_vertical": 44.0,
+        "recoil_horizontal": 132.88,
+        "recoil_total": 176.88,
+        "ergonomics_raw": 100.3,
+        "ergonomics_effective": 100.0,
+        "magazine_capacity": 30,
+        "has_launcher": true,
+        "part_count": 31,
+        "parts": [
+          {
+            "template_id": "6130ca3fd92c473c77020dbd",
+            "slot": "mod_charge",
+            "path": "6499849fc93611967b034949/mod_charge",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 3.0
+          },
+          {
+            "template_id": "649ec107961514b22506b10c",
+            "slot": "mod_gas_block",
+            "path": "6499849fc93611967b034949/mod_gas_block",
+            "is_mod": true,
+            "recoil_modifier_percent": -1.0,
+            "ergonomics_modifier": 0.0
+          },
+          {
+            "template_id": "682315c58639961c6001dbe7",
+            "slot": "mod_handguard",
+            "path": "6499849fc93611967b034949/mod_handguard",
+            "is_mod": true,
+            "recoil_modifier_percent": -0.5,
+            "ergonomics_modifier": 4.0
+          },
+          {
+            "template_id": "682317428639961c6001dbf1",
+            "slot": "mod_foregrip",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_foregrip",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": -0.2
+          },
+          {
+            "template_id": "6984b690b457c5047e0c01fa",
+            "slot": "mod_foregrip",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_foregrip/mod_foregrip",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 12.0
+          },
+          {
+            "template_id": "682317390ee6ef08a60e4547",
+            "slot": "mod_mount_000",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_000",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": -0.1
+          },
+          {
+            "template_id": "672e2e75ebb3b5f3e2cb6291",
+            "slot": "mod_tactical",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_000/mod_tactical",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 3.0
+          },
+          {
+            "template_id": "682317390ee6ef08a60e4547",
+            "slot": "mod_mount_001",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_001",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": -0.1
+          },
+          {
+            "template_id": "672e2e7511180730151307bc",
+            "slot": "mod_tactical",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_001/mod_tactical",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 3.0
+          },
+          {
+            "template_id": "682317390ee6ef08a60e4547",
+            "slot": "mod_mount_002",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_002",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": -0.1
+          },
+          {
+            "template_id": "672e2e7511180730151307bc",
+            "slot": "mod_tactical",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_002/mod_tactical",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 3.0
+          },
+          {
+            "template_id": "682315d08639961c6001dbec",
+            "slot": "mod_mount_003",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_003",
+            "is_mod": true,
+            "recoil_modifier_percent": -0.5,
+            "ergonomics_modifier": 6.0
+          },
+          {
+            "template_id": "682317390ee6ef08a60e4547",
+            "slot": "mod_mount_000",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_003/mod_mount_000",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": -0.1
+          },
+          {
+            "template_id": "672e2e75645f9ad09f4b949d",
+            "slot": "mod_tactical",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_003/mod_mount_000/mod_tactical",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 3.0
+          },
+          {
+            "template_id": "682317390ee6ef08a60e4547",
+            "slot": "mod_mount_001",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_003/mod_mount_001",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": -0.1
+          },
+          {
+            "template_id": "672e2e75645f9ad09f4b949d",
+            "slot": "mod_tactical",
+            "path": "6499849fc93611967b034949/mod_handguard/mod_mount_003/mod_mount_001/mod_tactical",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 3.0
+          },
+          {
+            "template_id": "5648b62b4bdc2d9d488b4585",
+            "slot": "mod_launcher",
+            "path": "6499849fc93611967b034949/mod_launcher",
+            "is_mod": true,
+            "recoil_modifier_percent": -8.0,
+            "ergonomics_modifier": -32.0
+          },
+          {
+            "template_id": "68d566b2aa07af2e14059e01",
+            "slot": "mod_magazine",
+            "path": "6499849fc93611967b034949/mod_magazine",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": -1.5
+          },
+          {
+            "template_id": "68235b0b7d3ccc3ca20f4d01",
+            "slot": "mod_muzzle",
+            "path": "6499849fc93611967b034949/mod_muzzle",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": -0.5
+          },
+          {
+            "template_id": "65f119212ffe657478130322",
+            "slot": "mod_muzzle",
+            "path": "6499849fc93611967b034949/mod_muzzle/mod_muzzle",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 0.0
+          },
+          {
+            "template_id": "612e0d3767085e45ef14057f",
+            "slot": "mod_muzzle",
+            "path": "6499849fc93611967b034949/mod_muzzle/mod_muzzle/mod_muzzle",
+            "is_mod": true,
+            "recoil_modifier_percent": -7.0,
+            "ergonomics_modifier": -1.0
+          },
+          {
+            "template_id": "612e0e04568c120fdd294258",
+            "slot": "mod_muzzle",
+            "path": "6499849fc93611967b034949/mod_muzzle/mod_muzzle/mod_muzzle/mod_muzzle",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 2.0
+          },
+          {
+            "template_id": "6087e663132d4d12c81fd96b",
+            "slot": "mod_pistol_grip",
+            "path": "6499849fc93611967b034949/mod_pistol_grip",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 14.0
+          },
+          {
+            "template_id": "649ec2f3961514b22506b111",
+            "slot": "mod_reciever",
+            "path": "6499849fc93611967b034949/mod_reciever",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 7.0
+          },
+          {
+            "template_id": "c26f2af872656829feb27c08",
+            "slot": "mod_scope",
+            "path": "6499849fc93611967b034949/mod_reciever/mod_scope",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 2.0
+          },
+          {
+            "template_id": "5beec9450db83400970084fd",
+            "slot": "mod_sight_rear",
+            "path": "6499849fc93611967b034949/mod_reciever/mod_sight_rear",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 0.0
+          },
+          {
+            "template_id": "628a7b23b0f75035732dd565",
+            "slot": "mod_sight_rear",
+            "path": "6499849fc93611967b034949/mod_reciever/mod_sight_rear/mod_sight_rear",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 1.0
+          },
+          {
+            "template_id": "6981ee9cf819a414310292fb",
+            "slot": "mod_stock_001",
+            "path": "6499849fc93611967b034949/mod_stock_001",
+            "is_mod": true,
+            "recoil_modifier_percent": -0.5,
+            "ergonomics_modifier": -1.0
+          },
+          {
+            "template_id": "5c793fc42e221600114ca25d",
+            "slot": "mod_stock",
+            "path": "6499849fc93611967b034949/mod_stock_001/mod_stock",
+            "is_mod": true,
+            "recoil_modifier_percent": -2.0,
+            "ergonomics_modifier": 2.0
+          },
+          {
+            "template_id": "672e2e75b7f83e81f1dc5067",
+            "slot": "mod_stock_000",
+            "path": "6499849fc93611967b034949/mod_stock_001/mod_stock/mod_stock_000",
+            "is_mod": true,
+            "recoil_modifier_percent": -18.0,
+            "ergonomics_modifier": 13.0
+          },
+          {
+            "template_id": "698b3592e700c6d632003753",
+            "slot": "mod_stock_003",
+            "path": "6499849fc93611967b034949/mod_stock_001/mod_stock/mod_stock_003",
+            "is_mod": true,
+            "recoil_modifier_percent": -18.5,
+            "ergonomics_modifier": 20.0
+          }
+        ]
+      },
+      "score": 156.0,
+      "proof": {
+        "status": "optimal",
+        "scope": "remaining_builds",
+        "objective_value": 100.0,
+        "best_bound": 100.0,
+        "gap": 0.0,
+        "original_global_optimum": true,
+        "tie_break_proven": true,
+        "minimal_parts_proven": true
+      }
+    }
+  ]
+}

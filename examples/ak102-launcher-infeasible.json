@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "status": "infeasible",
+  "weapon": {
+    "template_id": "692066c72a67c15014e822f1",
+    "name": "Kalashnikov AK-102 5.56x45 assault rifle Meta"
+  },
+  "source": {
+    "kind": "runtime-get",
+    "server": "https://127.0.0.1:6969",
+    "locale": "en",
+    "started_at": "2026-10-24T19:03:53.948250+00:00",
+    "completed_at": "2026-10-24T19:03:56.231438+00:00",
+    "hash_format": "sha256 of UTF-8 JSON, sorted keys, compact separators, ensure_ascii=false",
+    "items": {
+      "endpoint": "/client/items",
+      "retrieved_at": "2026-10-24T19:03:55.219699+00:00",
+      "sha256": "139551e0d60237915ebe39fe3ef170f168088383f061001ebd41880fec2797cd"
+    },
+    "locale_data": {
+      "endpoint": "/client/locale/en",
+      "retrieved_at": "2026-10-24T19:03:56.152844+00:00",
+      "sha256": "90c5d488ca21dbc1dfaf73d577bae8f64537d20ef69c2d727a5b66e19b8ca883"
+    },
+    "item_count": 7084,
+    "locale_entry_count": 39805,
+    "consistency": "two sequential GET responses; not a server-atomic snapshot",
+    "snapshot_created_at": "2026-10-24T19:03:56.343561+00:00",
+    "content_sha256": {
+      "items": "139551e0d60237915ebe39fe3ef170f168088383f061001ebd41880fec2797cd",
+      "locale": "90c5d488ca21dbc1dfaf73d577bae8f64537d20ef69c2d727a5b66e19b8ca883"
+    }
+  },
+  "objective": {
+    "kind": "ergo",
+    "recoil_weight": "1",
+    "ergo_weight": "1",
+    "score_formula": "recoil_weight * recoil_reduction_percent + ergo_weight * min(100, ergonomics_raw)",
+    "numeric_model": "exact template decimals; excludes IEEE-754 accumulation noise"
+  },
+  "constraints": {
+    "min_capacity": 0,
+    "launcher": "required",
+    "state": "unfolded, unloaded; no ammunition, skill, durability or dynamic recoil modifiers"
+  },
+  "search": {
+    "mode": "top",
+    "requested_solutions": 2,
+    "returned_solutions": 0,
+    "ranking_proven": false,
+    "exhausted": true,
+    "elapsed_seconds": 0.672,
+    "reachable_templates": 935,
+    "attachment_positions": 653,
+    "selection_variables": 10456,
+    "conflict_pairs": 1295
+  },
+  "solutions": []
+}

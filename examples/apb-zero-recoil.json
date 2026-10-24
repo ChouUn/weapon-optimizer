@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "status": "optimal",
+  "weapon": {
+    "template_id": "6964003370da0d7ae0857060",
+    "name": "Stechkin APB 9x18PM silenced machine pistol Unique"
+  },
+  "source": {
+    "kind": "runtime-get",
+    "server": "https://127.0.0.1:6969",
+    "locale": "en",
+    "started_at": "2026-10-24T19:17:42.182773+00:00",
+    "completed_at": "2026-10-24T19:17:44.427311+00:00",
+    "hash_format": "sha256 of UTF-8 JSON, sorted keys, compact separators, ensure_ascii=false",
+    "items": {
+      "endpoint": "/client/items",
+      "retrieved_at": "2026-10-24T19:17:43.418972+00:00",
+      "sha256": "507951750806fce65fd0bdbd857bb819d56a0e6fcd1aa0ea9c47251c3003e7db"
+    },
+    "locale_data": {
+      "endpoint": "/client/locale/en",
+      "retrieved_at": "2026-10-24T19:17:44.349116+00:00",
+      "sha256": "90c5d488ca21dbc1dfaf73d577bae8f64537d20ef69c2d727a5b66e19b8ca883"
+    },
+    "item_count": 7084,
+    "locale_entry_count": 39805,
+    "consistency": "two sequential GET responses; not a server-atomic snapshot",
+    "snapshot_created_at": "2026-10-24T19:17:44.503353+00:00",
+    "content_sha256": {
+      "items": "507951750806fce65fd0bdbd857bb819d56a0e6fcd1aa0ea9c47251c3003e7db",
+      "locale": "90c5d488ca21dbc1dfaf73d577bae8f64537d20ef69c2d727a5b66e19b8ca883"
+    }
+  },
+  "objective": {
+    "kind": "recoil",
+    "recoil_weight": "1",
+    "ergo_weight": "1",
+    "score_formula": "recoil_weight * recoil_reduction_percent + ergo_weight * min(100, ergonomics_raw)",
+    "recoil_reduction_definition": "100 * (base_recoil - recoil_total) / abs(base_recoil); zero when base_recoil is zero",
+    "numeric_model": "exact template decimals; excludes IEEE-754 accumulation noise"
+  },
+  "constraints": {
+    "min_capacity": 20,
+    "launcher": "any",
+    "state": "unfolded, unloaded; no ammunition, skill, durability or dynamic recoil modifiers"
+  },
+  "search": {
+    "mode": "top",
+    "requested_solutions": 1,
+    "returned_solutions": 1,
+    "ranking_proven": true,
+    "exhausted": false,
+    "elapsed_seconds": 0.047,
+    "reachable_templates": 35,
+    "attachment_positions": 9,
+    "selection_variables": 35,
+    "conflict_pairs": 0
+  },
+  "solutions": [
+    {
+      "rank": 1,
+      "build": {
+        "template_id": "6964003370da0d7ae0857060",
+        "name": "Stechkin APB 9x18PM silenced machine pistol Unique",
+        "slot": null,
+        "children": [
+          {
+            "template_id": "5cfe8010d7ad1a59283b14c6",
+            "name": "AK 7.62x39 X Products X-47 50-round drum magazine",
+            "slot": "mod_magazine",
+            "children": []
+          },
+          {
+            "template_id": "5a17fc70fcdbcb0176308b3d",
+            "name": "APS bakelite side-pieces",
+            "slot": "mod_pistol_grip",
+            "children": []
+          },
+          {
+            "template_id": "6965cceaec7a5e0dd4fb5857",
+            "name": "Nightforce Magmount 34mm ring scope mount for Stormtrooper Use Only",
+            "slot": "mod_sight_front",
+            "children": [
+              {
+                "template_id": "6965cceaec7a5e0dd4fb5856",
+                "name": "Nightforce ATACR 7-35x56 34mm riflescope for Stormtrooper Use Only",
+                "slot": "mod_scope",
+                "children": []
+              }
+            ]
+          }
+        ]
+      },
+      "stats": {
+        "recoil_modifier_percent": 0.0,
+        "recoil_vertical": 0.0,
+        "recoil_horizontal": 0.0,
+        "recoil_total": 0.0,
+        "ergonomics_raw": 168.0,
+        "ergonomics_effective": 100.0,
+        "magazine_capacity": 50,
+        "has_launcher": false,
+        "part_count": 4,
+        "parts": [
+          {
+            "template_id": "5cfe8010d7ad1a59283b14c6",
+            "slot": "mod_magazine",
+            "path": "6964003370da0d7ae0857060/mod_magazine",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": -15.0
+          },
+          {
+            "template_id": "5a17fc70fcdbcb0176308b3d",
+            "slot": "mod_pistol_grip",
+            "path": "6964003370da0d7ae0857060/mod_pistol_grip",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 5.0
+          },
+          {
+            "template_id": "6965cceaec7a5e0dd4fb5857",
+            "slot": "mod_sight_front",
+            "path": "6964003370da0d7ae0857060/mod_sight_front",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": -2.0
+          },
+          {
+            "template_id": "6965cceaec7a5e0dd4fb5856",
+            "slot": "mod_scope",
+            "path": "6964003370da0d7ae0857060/mod_sight_front/mod_scope",
+            "is_mod": true,
+            "recoil_modifier_percent": 0.0,
+            "ergonomics_modifier": 100.0
+          }
+        ]
+      },
+      "score": 100.0,
+      "proof": {
+        "status": "optimal",
+        "scope": "all_builds",
+        "objective_value": 0.0,
+        "best_bound": -0.0,
+        "gap": 0.0,
+        "original_global_optimum": true,
+        "tie_break_proven": true,
+        "minimal_parts_proven": true
+      }
+    }
+  ]
+}
