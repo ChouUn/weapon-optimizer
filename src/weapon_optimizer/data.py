@@ -25,7 +25,7 @@ MOD_CATEGORY = "5448fe124bdc2da5018b4567"
 MAGAZINE_CATEGORY = "5448bc234bdc2d3c308b4569"
 LAUNCHER_CATEGORY = "55818b014bdc2ddc698b456b"
 WEAPON_CATEGORY = "5422acb9af1c889c16000029"
-SNAPSHOT_SCHEMA_VERSION = 2
+SNAPSHOT_SCHEMA_VERSION = 3
 HASH_FORMAT = "sha256 of UTF-8 JSON, object order preserved, compact separators, ensure_ascii=false"
 
 _RICH_TEXT = re.compile(
@@ -49,6 +49,10 @@ class Catalog:
         items: dict[str, dict[str, Any]],
         locale: dict[str, str] | None = None,
         source: dict[str, Any] | None = None,
+        *,
+        locale_ch: dict[str, str] | None = None,
+        acquisition: dict[str, Any] | None = None,
+        compatibility: dict[str, Any] | None = None,
     ) -> None:
         if not isinstance(items, dict):
             raise DataError("items must be an object keyed by template ID")
@@ -56,9 +60,18 @@ class Catalog:
             raise DataError("locale must be an object")
         if source is not None and not isinstance(source, dict):
             raise DataError("source must be an object")
+        if locale_ch is not None and not isinstance(locale_ch, dict):
+            raise DataError("locale_ch must be an object")
+        if acquisition is not None and not isinstance(acquisition, dict):
+            raise DataError("acquisition must be an object or null")
+        if compatibility is not None and not isinstance(compatibility, dict):
+            raise DataError("compatibility must be an object or null")
         self.items = items
         self.locale = locale if locale is not None else {}
         self.source = source if source is not None else {}
+        self.locale_ch = locale_ch if locale_ch is not None else {}
+        self.acquisition = acquisition
+        self.compatibility = compatibility
         self._ancestors: dict[str, tuple[str, ...]] = {}
         self._candidate_cache: dict[tuple[Any, ...], tuple[str, ...]] = {}
         for tid, item in items.items():
@@ -97,13 +110,21 @@ class Catalog:
                 raise DataError(f"{tid}: {key} must be a list of template IDs or null")
         return result
 
-    def name(self, tid: str) -> str:
+    def name(self, tid: str, *, language: str = "en", short: bool = False) -> str:
+        """Use exact locale entries, falling back from Chinese to English per key."""
         if tid not in self.items:
             raise DataError(f"unknown template ID: {tid}")
-        label = self.locale.get(f"{tid} Name")
-        if not isinstance(label, str) or not label.strip():
-            label = self.items[tid].get("_name") or tid
-        return _RICH_TEXT.sub("", str(label)).strip()
+        if language not in {"en", "ch"}:
+            raise DataError("language must be en or ch")
+        locales = (self.locale_ch, self.locale) if language == "ch" else (self.locale,)
+        for suffix in (("ShortName", "Name") if short else ("Name",)):
+            for locale in locales:
+                label = locale.get(f"{tid} {suffix}")
+                if isinstance(label, str):
+                    cleaned = _RICH_TEXT.sub("", label).strip()
+                    if cleaned:
+                        return cleaned
+        return _RICH_TEXT.sub("", str(self.items[tid].get("_name") or tid)).strip()
 
     def ancestors(self, tid: str) -> tuple[str, ...]:
         """Return self followed by parents, rejecting cycles and missing parents."""
@@ -195,6 +216,22 @@ class Catalog:
         result = tuple(sorted(accepted if accepted is not None else ()))
         self._candidate_cache[signature] = result
         return result
+
+
+def solve_context(catalog: Catalog, acquisition: str, allowed_ids: frozenset[str] | None = None) -> dict[str, Any]:
+    """Bind proof reuse to the search domain; bump version for model semantic changes."""
+    if acquisition not in {"required", "templates"}:
+        raise DataError("invalid acquisition mode for solve context")
+    if acquisition == "required" and allowed_ids is None:
+        raise DataError("required solve context needs the evidenced candidate set")
+    clone_rules = (catalog.compatibility or {}).get("clone_rules", [])
+    return {
+        "version": 1,
+        "items_sha256": _digest(catalog.items),
+        "compatibility_sha256": _digest({"policy_version": 1, "clone_rules": clone_rules}),
+        "acquisition": acquisition,
+        "allowed_templates_sha256": _digest(sorted(allowed_ids)) if allowed_ids is not None else None,
+    }
 
 
 def _now() -> str:
@@ -326,8 +363,15 @@ def save_snapshot(catalog: Catalog, path: str | Path) -> dict[str, Any]:
     source = dict(catalog.source)
     source.setdefault("snapshot_created_at", _now())
     source["hash_format"] = HASH_FORMAT
-    source["content_sha256"] = {"items": _digest(catalog.items), "locale": _digest(catalog.locale)}
-    document = {"schema_version": SNAPSHOT_SCHEMA_VERSION, "items": catalog.items, "locale": catalog.locale, "source": source}
+    sections = {
+        "items": catalog.items,
+        "locale": catalog.locale,
+        "locale_ch": catalog.locale_ch,
+        "acquisition": catalog.acquisition,
+        "compatibility": catalog.compatibility,
+    }
+    source["content_sha256"] = {key: _digest(value) for key, value in sections.items()}
+    document = {"schema_version": SNAPSHOT_SCHEMA_VERSION, **sections, "source": source}
     target = Path(path).resolve()
     project_root = Path(__file__).resolve().parents[2]
     workspace_root = project_root.parents[1]
@@ -356,9 +400,10 @@ def load_snapshot(path: str | Path) -> Catalog:
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise DataError(f"cannot read snapshot {str(path)!r}: {exc}") from None
     if not isinstance(document, dict) or document.get("schema_version") != SNAPSHOT_SCHEMA_VERSION:
-        raise DataError(f"snapshot must be an object with schema_version {SNAPSHOT_SCHEMA_VERSION}; older snapshots lack order-sensitive integrity")
-    if not {"items", "locale", "source"} <= document.keys():
-        raise DataError("snapshot must contain complete items, locale, and source objects")
+        raise DataError(f"snapshot must be an object with schema_version {SNAPSHOT_SCHEMA_VERSION}")
+    sections = ("items", "locale", "locale_ch", "acquisition", "compatibility")
+    if not {*sections, "source"} <= document.keys():
+        raise DataError("snapshot must contain items, locale, locale_ch, acquisition, compatibility, and source")
     if not isinstance(document["items"], dict) or not document["items"]:
         raise DataError("snapshot items must be a nonempty object")
     if not isinstance(document["locale"], dict) or not document["locale"]:
@@ -368,7 +413,11 @@ def load_snapshot(path: str | Path) -> Catalog:
     digests = document["source"].get("content_sha256")
     if not isinstance(digests, dict):
         raise DataError("snapshot source is missing its content_sha256 digests")
-    for section in ("items", "locale"):
+    for section in sections:
         if digests.get(section) != _digest(document[section]):
             raise DataError(f"snapshot {section} SHA-256 mismatch")
-    return Catalog(document["items"], document["locale"], document["source"])
+    return Catalog(
+        document["items"], document["locale"], document["source"],
+        locale_ch=document["locale_ch"], acquisition=document["acquisition"],
+        compatibility=document["compatibility"],
+    )

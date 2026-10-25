@@ -117,7 +117,7 @@ class SnapshotBehaviorTests(unittest.TestCase):
                 save_snapshot(catalog, target)
                 loaded = load_snapshot(target)
                 self.assertEqual(loaded.props("precise")["Recoil"], Decimal("-1.0000000000000001"))
-                result = optimize(loaded, "weapon", objective="recoil", limit=1)
+                result = optimize(loaded, "weapon", objective="recoil", limit=1, acquisition="templates")
                 self.assertEqual(result["status"], "optimal")
                 # The slightly better recoil must beat the smaller part count.
                 self.assertEqual(result["solutions"][0]["build"]["children"][0]["template_id"], "precise")
@@ -155,6 +155,22 @@ class SnapshotBehaviorTests(unittest.TestCase):
         with self.assertRaises(DataError):
             load_snapshot(target)
 
+    def test_localized_labels_survive_snapshot_and_context_tampering_is_rejected(self):
+        self.catalog.locale_ch.update({"weapon Name": "测试武器", "weapon ShortName": "测试短名"})
+        target = self.project / "localized.json"
+        save_snapshot(self.catalog, target)
+        loaded = load_snapshot(target)
+        self.assertEqual(loaded.name("weapon", language="ch", short=True), "测试短名")
+        self.assertEqual(loaded.name("weapon", language="ch"), "测试武器")
+        original = json.loads(target.read_text(encoding="utf-8"))
+        for section in ("locale_ch", "acquisition", "compatibility"):
+            with self.subTest(section=section):
+                tampered = dict(original)
+                tampered[section] = {"changed": True}
+                target.write_text(json.dumps(tampered), encoding="utf-8")
+                with self.assertRaises(DataError):
+                    load_snapshot(target)
+
 
 class ConflictKeyResolutionTests(unittest.TestCase):
     def make_catalog(self, *, canonical_last=False, final_null=False):
@@ -174,7 +190,7 @@ class ConflictKeyResolutionTests(unittest.TestCase):
         invalid = node("weapon", None, node("candidate", "choice"), node("other", "other"))
         with self.assertRaises(ValueError):
             evaluate_build(catalog, invalid)
-        result = optimize(catalog, "weapon", objective="recoil", limit=1)
+        result = optimize(catalog, "weapon", objective="recoil", limit=1, acquisition="templates")
         self.assertEqual(result["solutions"][0]["build"]["children"][0]["template_id"], "safe")
         self.assertEqual(result["solutions"][0]["stats"]["recoil_modifier_percent"], -1)
 
@@ -184,12 +200,12 @@ class ConflictKeyResolutionTests(unittest.TestCase):
                 catalog = self.make_catalog(canonical_last=True, final_null=final_null)
                 build = node("weapon", None, node("candidate", "choice"), node("other", "other"))
                 self.assertEqual(evaluate_build(catalog, build)["recoil_modifier_percent"], -20)
-                self.assertEqual(optimize(catalog, "weapon", objective="recoil", limit=1)["solutions"][0]["stats"]["recoil_modifier_percent"], -20)
+                self.assertEqual(optimize(catalog, "weapon", objective="recoil", limit=1, acquisition="templates")["solutions"][0]["stats"]["recoil_modifier_percent"], -20)
 
     def test_noncanonical_self_conflict_still_limits_instances(self):
         part = item("part", Recoil=-2, Conflictingitems=["part"])
         catalog = catalog_with(part, weapon_slots=[slot("left", "part"), slot("right", "part")])
-        result = optimize(catalog, "weapon", objective="recoil", limit=1)
+        result = optimize(catalog, "weapon", limit=1, acquisition="templates")
         self.assertEqual(result["solutions"][0]["stats"]["part_count"], 1)
         self.assertEqual(result["solutions"][0]["stats"]["recoil_modifier_percent"], -2)
 

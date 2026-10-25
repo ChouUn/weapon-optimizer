@@ -6,11 +6,17 @@ from collections import Counter
 from copy import deepcopy
 from fractions import Fraction
 from itertools import product
+import hashlib
+import json
+from pathlib import Path
+import tempfile
 import unittest
+from unittest.mock import patch
 
-from weapon_optimizer.data import Catalog
+from weapon_optimizer.data import Catalog, DataError, _digest
 from weapon_optimizer.evaluate import evaluate_build
-from weapon_optimizer.optimizer import optimize
+from weapon_optimizer.optimizer import optimize as optimize_builds
+from weapon_optimizer.compatibility import Compatibility, load_compatibility
 
 
 ITEM = "54009119af1c881c07000029"
@@ -21,6 +27,11 @@ LAUNCHER = "55818b014bdc2ddc698b456b"
 AMMO = "5485a8684bdc2da71d8b4567"
 CYLINDER = "610720f290b75a49ff2e5e25"
 SPRING_CYLINDER = "627a137bf21bc425b06ab944"
+
+
+def optimize(catalog, weapon_id, **options):
+    """These synthetic solver fixtures deliberately study raw template choices."""
+    return optimize_builds(catalog, weapon_id, acquisition="templates", **options)
 
 
 def slot(name, *allowed, required=False):
@@ -97,13 +108,14 @@ def enumerate_trees(catalog, template_id="weapon", slot_name=None, active=()):
 def oracle(catalog, *, min_capacity=0, launcher="any"):
     """Independent objective/constraint calculation over every tiny build."""
     result = []
+    compatibility = Compatibility(catalog)
     for build in enumerate_trees(catalog):
         nodes = list(flatten(build))
         counts = Counter(part["template_id"] for part in nodes)
         if any(
             counts[conflict] > (1 if conflict == template_id else 0)
             for template_id in counts
-            for conflict in catalog.props(template_id).get("ConflictingItems", [])
+            for conflict in compatibility.conflicts(template_id)
         ):
             continue
         props = [catalog.props(part["template_id"]) for part in nodes[1:] if catalog.is_mod(part["template_id"])]
@@ -762,6 +774,221 @@ class OptimizerBehaviorTests(unittest.TestCase):
                 self.assertEqual(solution["build"]["children"][0]["template_id"], "lower")
                 self.assertEqual(solution["stats"]["recoil_total"], -360)
                 self.assertEqual(solution["score"], 70)
+
+
+def clone_evidence(catalog, *aliases, excluded=()):
+    return {
+        "schema_version": 1,
+        "catalog_sha256": _digest(catalog.items),
+        "clone_rules": [{
+            "kind": "incoming-clone-conflicts",
+            "aliases": [{"source_id": source, "clone_id": clone} for source, clone in aliases],
+            "excluded_owners": list(excluded),
+        }],
+    }
+
+
+def color_stock(template_id, prefab, **props):
+    return item(template_id, Prefab={"path": prefab, "rcid": ""}, Recoil=-4, Ergonomics=2, **props)
+
+
+class CompatibilityBehaviorTests(unittest.TestCase):
+    def test_compatibility_captured_for_different_properties_is_rejected(self):
+        catalog = catalog_with(item("original"), item("clone"), weapon_slots=[slot("stock", "clone")])
+        catalog.compatibility = clone_evidence(catalog, ("original", "clone"))
+        catalog.props("clone")["Recoil"] = -1
+        with self.assertRaisesRegex(DataError, "items snapshot"):
+            evaluate_build(catalog, node("weapon", None, node("clone", "stock")))
+        with self.assertRaisesRegex(DataError, "items snapshot"):
+            optimize(catalog, "weapon", limit=1)
+
+    def test_variant_property_order_difference_is_not_normalized(self):
+        base = color_stock("base", "stocks/mini.bundle", ConflictingItems=["pad"])
+        variant = color_stock("variant", "stocks/mini_red.bundle")
+        variant["_props"] = dict(reversed(list(variant["_props"].items())))
+        catalog = catalog_with(base, variant, item("pad"), weapon_slots=[slot("stock", "variant"), slot("pad", "pad")])
+        stats = evaluate_build(catalog, node("weapon", None, node("variant", "stock"), node("pad", "pad")))
+        self.assertEqual(stats["recoil_modifier_percent"], -4)
+
+    def test_late_loaded_conflict_expands_to_clone_and_clone_of_clone(self):
+        catalog = catalog_with(
+            item("original"), item("clone", Recoil=-10), item("clone2", Recoil=-20),
+            item("late", ConflictingItems=["original"]), item("safe", Recoil=-1),
+            weapon_slots=[slot("stock", "clone", "clone2", "safe", required=True), slot("late", "late", required=True)],
+        )
+        catalog.compatibility = clone_evidence(catalog, ("original", "clone"), ("clone", "clone2"))
+        for template_id in ("clone", "clone2"):
+            with self.subTest(template_id=template_id), self.assertRaisesRegex(ValueError, "conflict"):
+                evaluate_build(catalog, node("weapon", None, node(template_id, "stock"), node("late", "late")))
+        result = optimize(catalog, "weapon", limit=1)
+        self.assertEqual({part["template_id"] for part in result["solutions"][0]["build"]["children"]}, {"late", "safe"})
+        self.assertEqual(result["solutions"][0]["stats"]["recoil_modifier_percent"], -1)
+
+    def test_clones_without_propagation_evidence_do_not_inherit_conflicts(self):
+        catalog = catalog_with(
+            item("original"), item("clone", Recoil=-10), item("late", ConflictingItems=["original"]),
+            weapon_slots=[slot("stock", "clone", required=True), slot("late", "late", required=True)],
+        )
+        stats = evaluate_build(catalog, node("weapon", None, node("clone", "stock"), node("late", "late")))
+        self.assertEqual(stats["recoil_modifier_percent"], -10)
+        self.assertEqual(optimize(catalog, "weapon", limit=1)["status"], "optimal")
+
+    def test_clone_propagation_preserves_consumer_owner_exclusions(self):
+        catalog = catalog_with(
+            item("original"), item("clone"), item("owner", ConflictingItems=["original"]),
+            weapon_slots=[slot("stock", "clone", required=True), slot("owner", "owner", required=True)],
+        )
+        catalog.compatibility = clone_evidence(catalog, ("original", "clone"), excluded=("owner",))
+        evaluate_build(catalog, node("weapon", None, node("clone", "stock"), node("owner", "owner")))
+        self.assertEqual(optimize(catalog, "weapon", limit=1)["status"], "optimal")
+
+    def test_color_variants_union_missing_incoming_and_outgoing_conflicts(self):
+        catalog = catalog_with(
+            color_stock("black", "stocks/mini.bundle", ConflictingItems=["pad"]),
+            color_stock("yellow", "stocks/mini_ylw.bundle"),
+            color_stock("red", "stocks/mini_red.bundle"), item("pad", Recoil=-2),
+            item("blocker", ConflictingItems=["black"]),
+            weapon_slots=[slot("stock", "yellow", "red"), slot("pad", "pad"), slot("blocker", "blocker")],
+        )
+        for variant, other in product(("yellow", "red"), ("pad", "blocker")):
+            with self.subTest(variant=variant, other=other), self.assertRaisesRegex(ValueError, "conflict"):
+                evaluate_build(catalog, node("weapon", None, node(variant, "stock"), node(other, other)))
+        for solution in optimize(catalog, "weapon", limit=8)["solutions"]:
+            evaluate_build(catalog, solution["build"])
+            installed = {part["template_id"] for part in flatten(solution["build"])}
+            self.assertFalse(installed & {"yellow", "red"} and installed & {"pad", "blocker"})
+
+    def test_noncosmetic_changes_or_missing_base_do_not_merge_variants(self):
+        for difference in ("recoil", "directory", "prefab_extra", "no_base", "unknown_suffix"):
+            with self.subTest(difference=difference):
+                base = color_stock("base", "stocks/mini.bundle", ConflictingItems=["pad"])
+                variant = color_stock("variant", "stocks/mini_red.bundle")
+                if difference == "recoil":
+                    variant["_props"]["Recoil"] = -5
+                elif difference == "directory":
+                    variant["_props"]["Prefab"]["path"] = "other/mini_red.bundle"
+                elif difference == "prefab_extra":
+                    variant["_props"]["Prefab"]["rcid"] = "different"
+                elif difference == "no_base":
+                    base["_props"]["Prefab"]["path"] = "stocks/mini_ylw.bundle"
+                else:
+                    variant["_props"]["Prefab"]["path"] = "stocks/mini_short.bundle"
+                catalog = catalog_with(base, variant, item("pad"), weapon_slots=[slot("stock", "variant", required=True), slot("pad", "pad", required=True)])
+                evaluate_build(catalog, node("weapon", None, node("variant", "stock"), node("pad", "pad")))
+                self.assertEqual(optimize(catalog, "weapon", limit=1)["status"], "optimal")
+
+    def test_identical_unsuffixed_prefab_alone_is_not_clone_evidence(self):
+        catalog = catalog_with(
+            color_stock("one", "stocks/mini.bundle", ConflictingItems=["pad"]),
+            color_stock("two", "stocks/mini.bundle"), item("pad"),
+            weapon_slots=[slot("stock", "two", required=True), slot("pad", "pad", required=True)],
+        )
+        stats = evaluate_build(catalog, node("weapon", None, node("two", "stock"), node("pad", "pad")))
+        self.assertEqual(stats["recoil_modifier_percent"], -4)
+
+    def test_loader_records_clone_propagation_and_replays_without_source_files(self):
+        workspace = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory(prefix="optimizer-compatibility-", dir=workspace / ".tmp") as temporary:
+            root = Path(temporary)
+            mod = root / "SPT_Runtime" / "user" / "mods" / "TGC-NG"
+            (mod / "db" / "CustomItems").mkdir(parents=True)
+            assembly = b"synthetic consumer identity; never executed"
+            (mod / "TGC-NG.dll").write_bytes(assembly)
+            config = mod / "db" / "CustomItems" / "modTGC_items.json"
+            config.write_text(json.dumps({"clone": {"itemTplToClone": "original"}}), encoding="utf-8")
+            catalog = catalog_with(
+                item("original"), item("clone"), item("late", ConflictingItems=["original"]),
+                weapon_slots=[slot("stock", "clone", required=True), slot("late", "late", required=True)],
+            )
+            with patch("weapon_optimizer.compatibility._TGC_SHA256", hashlib.sha256(assembly).hexdigest()):
+                catalog.compatibility = load_compatibility(root, catalog)
+            self.assertEqual({record["sha256"] for record in catalog.compatibility["sources"]}, {
+                hashlib.sha256(assembly).hexdigest(), hashlib.sha256(config.read_bytes()).hexdigest(),
+            })
+            config.unlink()
+            (mod / "TGC-NG.dll").unlink()
+            with self.assertRaisesRegex(ValueError, "conflict"):
+                evaluate_build(catalog, node("weapon", None, node("clone", "stock"), node("late", "late")))
+
+    def test_loader_rejects_unverified_consumer_instead_of_guessing_semantics(self):
+        workspace = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory(prefix="optimizer-compatibility-", dir=workspace / ".tmp") as temporary:
+            root = Path(temporary)
+            mod = root / "SPT_Runtime" / "user" / "mods" / "TGC-NG"
+            (mod / "db" / "CustomItems").mkdir(parents=True)
+            (mod / "TGC-NG.dll").write_bytes(b"unknown consumer")
+            (mod / "db" / "CustomItems" / "modTGC_items.json").write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(DataError, "unverified"):
+                load_compatibility(root, catalog_with())
+
+    def test_reported_ums_moe_pad_chain_is_rejected_for_all_colors(self):
+        moe, modded, pad = "56eabf3bd2720b75698b4569", "672e2e75d41d0e93c918096a", "58d2912286f7744e27117493"
+        variants = {
+            "698b338649b46ae2d0092e82": "stocks/stock_ar15_phase5_ums.bundle",
+            "698b358b49b46ae2d0092e86": "stocks/stock_ar15_phase5_ums_red.bundle",
+            "698b3592e700c6d632003753": "stocks/stock_ar15_phase5_ums_ylw.bundle",
+        }
+        black = next(iter(variants))
+        catalog = catalog_with(
+            item(moe), item(modded, Slots=[slot("mod_stock", pad)]), item(pad),
+            *(color_stock(tid, path, ConflictingItems=[moe, pad] if tid == black else [moe]) for tid, path in variants.items()),
+            weapon_slots=[slot("mod_stock_000", modded), slot("mod_stock_003", *variants)],
+        )
+        catalog.compatibility = clone_evidence(catalog, (moe, modded), excluded=(modded,))
+        for variant in variants:
+            with self.subTest(variant=variant), self.assertRaisesRegex(ValueError, "conflict"):
+                evaluate_build(catalog, node("weapon", None, node(modded, "mod_stock_000", node(pad, "mod_stock")), node(variant, "mod_stock_003")))
+        # Either assembly by itself remains legal, including the MOE pad.
+        evaluate_build(catalog, node("weapon", None, node(modded, "mod_stock_000", node(pad, "mod_stock"))))
+        evaluate_build(catalog, node("weapon", None, node(black, "mod_stock_003")))
+        for solution in optimize(catalog, "weapon", limit=10)["solutions"]:
+            evaluate_build(catalog, solution["build"])
+            installed = {part["template_id"] for part in flatten(solution["build"])}
+            self.assertFalse(modded in installed and installed & variants.keys())
+
+
+def obtainable(catalog, allowed):
+    entries = {}
+    for tid, template in catalog.items.items():
+        if template.get("_type") == "Item":
+            entries[tid] = {
+                "status": "conditional" if tid in allowed else "unproven",
+                "sources": [{"channel": "fixture", "conditions": [{"kind": "loyalty_level", "minimum": 2}]}] if tid in allowed else [],
+                "blocked_channels": [], "conditions": [],
+            }
+    return {"schema_version": 1, "catalog_sha256": _digest(catalog.items), "source_files": [], "items": entries}
+
+
+class AcquisitionOptimizerTests(unittest.TestCase):
+    def test_required_is_default_and_missing_evidence_fails_before_solving(self):
+        catalog = catalog_with(item("part"), weapon_slots=[slot("part", "part")])
+        with self.assertRaises(DataError):
+            optimize_builds(catalog, "weapon", limit=1)
+
+    def test_unproven_attachment_is_filtered_but_user_selected_root_need_not_be_obtainable(self):
+        catalog = catalog_with(item("unproven", Recoil=-30), item("obtainable", Recoil=-2), weapon_slots=[slot("part", "unproven", "obtainable", required=True)])
+        catalog.acquisition = obtainable(catalog, {"obtainable"})
+        result = optimize_builds(catalog, "weapon", limit=2)
+        self.assertEqual(result["status"], "optimal")
+        self.assertEqual(len(result["solutions"]), 1)
+        self.assertEqual(result["constraints"]["acquisition"], "required")
+        solution = result["solutions"][0]
+        self.assertEqual(solution["build"]["children"][0]["template_id"], "obtainable")
+        self.assertEqual(solution["acquisition"][0]["status"], "conditional")
+        self.assertEqual(solution["acquisition"][0]["sources"][0]["conditions"], [{"kind": "loyalty_level", "minimum": 2}])
+        research = optimize(catalog, "weapon", limit=1)
+        self.assertEqual(research["solutions"][0]["build"]["children"][0]["template_id"], "unproven")
+        self.assertEqual(research["solutions"][0]["acquisition"][0]["status"], "not_checked")
+
+    def test_unproven_required_descendant_prevents_its_parent_branch(self):
+        catalog = catalog_with(
+            item("parent", Recoil=-30, Slots=[slot("deep", "missing", required=True)]), item("missing"), item("safe", Recoil=-1),
+            weapon_slots=[slot("part", "parent", "safe", required=True)],
+        )
+        catalog.acquisition = obtainable(catalog, {"parent", "safe"})
+        result = optimize_builds(catalog, "weapon", limit=1)
+        self.assertEqual(result["solutions"][0]["build"]["children"][0]["template_id"], "safe")
+        evaluate_build(catalog, result["solutions"][0]["build"])
 
 
 if __name__ == "__main__":

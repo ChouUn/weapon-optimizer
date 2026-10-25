@@ -8,6 +8,9 @@ from fractions import Fraction
 
 from ortools.sat.python import cp_model
 
+from .acquisition import Availability
+from .compatibility import Compatibility
+from .data import solve_context
 from .evaluate import evaluate_build, magazine_capacity
 
 WEAPON = "5422acb9af1c889c16000029"
@@ -34,7 +37,7 @@ def _scale(values):
     return scale, integers
 
 
-def _graph(catalog, root):
+def _graph(catalog, root, allowed_ids=None):
     """Validate the type DAG before expanding it; never silently truncate cycles."""
     edges = {}
     visiting = []
@@ -52,7 +55,7 @@ def _graph(catalog, root):
         names = [s["_name"] for s in slots]
         if len(names) != len(set(names)):
             raise ValueError(f"Duplicate slot names in template {tid}")
-        children = [(slot, tuple(tid for tid in catalog.candidates(slot) if not catalog.is_a(tid, AMMO))) for slot in slots]
+        children = [(slot, tuple(tid for tid in catalog.candidates(slot) if not catalog.is_a(tid, AMMO) and (allowed_ids is None or tid in allowed_ids))) for slot in slots]
         # Mark completed only after descendants: an optional cycle is still infinite.
         for slot, ids in children:
             for child in ids:
@@ -66,14 +69,14 @@ def _graph(catalog, root):
 
 
 class _Model:
-    def __init__(self, catalog, root, min_capacity, launcher):
+    def __init__(self, catalog, root, min_capacity, launcher, allowed_ids=None):
         self.catalog = catalog
         self.root = root
         self.model = cp_model.CpModel()
         props = catalog.props(root)
         base_recoil = _number(props.get("RecoilForceUp", 0)) + _number(props.get("RecoilForceBack", 0))
         self.recoil_direction = (base_recoil > 0) - (base_recoil < 0)
-        edges = _graph(catalog, root)
+        edges = _graph(catalog, root, allowed_ids)
         self.variables = {}
         self.paths = defaultdict(dict)
         providers = defaultdict(dict)
@@ -114,9 +117,10 @@ class _Model:
             present[tid] = self.model.new_bool_var(f"present:{tid}")
             self.model.add_max_equality(present[tid], variables)
         pairs = set()
+        compatibility = Compatibility(catalog)
         for tid in by_type:
-            # The client compares exact template IDs here, not item categories.
-            for other in catalog.conflicts(tid):
+            # Keep model feasibility identical to independent build evaluation.
+            for other in compatibility.conflicts(tid):
                 if other not in by_type:
                     continue
                 if other == tid:
@@ -186,7 +190,7 @@ class _Model:
         return nodes[()]
 
 
-def optimize(catalog, weapon_id, *, objective="weighted", recoil_weight="1", ergo_weight="1", min_capacity=0, launcher="any", limit=3, time_limit=30.0, workers=1, mode="top"):
+def optimize(catalog, weapon_id, *, objective="weighted", recoil_weight="1", ergo_weight="1", min_capacity=0, launcher="any", limit=3, time_limit=30.0, workers=1, mode="top", acquisition="required"):
     """Return ranked builds or proven Pareto points, with explicit proof scope.
 
     Limits apply to the complete call (model construction included). An unproven
@@ -194,6 +198,9 @@ def optimize(catalog, weapon_id, *, objective="weighted", recoil_weight="1", erg
     """
     if objective not in {"weighted", "recoil", "ergo"} or mode not in {"top", "pareto"}:
         raise ValueError("Invalid objective or mode")
+    if acquisition not in {"required", "templates"}:
+        raise ValueError("Invalid acquisition mode")
+    availability = Availability(catalog, catalog.acquisition) if acquisition == "required" else None
     if launcher not in {"any", "required", "forbidden"}:
         raise ValueError("Invalid launcher constraint")
     if not isinstance(min_capacity, int) or isinstance(min_capacity, bool) or min_capacity < 0:
@@ -209,7 +216,7 @@ def optimize(catalog, weapon_id, *, objective="weighted", recoil_weight="1", erg
         raise ValueError(f"Not a weapon template: {weapon_id}")
     start = time.monotonic()
     deadline = start + time_limit
-    problem = _Model(catalog, weapon_id, min_capacity, launcher)
+    problem = _Model(catalog, weapon_id, min_capacity, launcher, availability.allowed_ids if availability is not None else None)
     kind = "recoil" if mode == "pareto" else objective
     primary, scale, secondary = problem.objective(kind, wr, we)
     solutions = []
@@ -280,7 +287,14 @@ def optimize(catalog, weapon_id, *, objective="weighted", recoil_weight="1", erg
         reduction = -problem.recoil_direction * _number(stats["recoil_modifier_percent"])
         score = float(wr * reduction + we * _number(stats["ergonomics_effective"]))
         proof = {"status": "optimal" if primary_proven else "feasible", "scope": "pareto_point" if mode == "pareto" and primary_proven and secondary_proven else "all_builds" if rank == 1 else "remaining_builds", "objective_value": value / scale, "best_bound": bound / scale, "gap": max(0.0, (bound - value) / max(1.0, abs(value))), "original_global_optimum": mode == "top" and primary_proven and value == first_value, "tie_break_proven": secondary_proven, "minimal_parts_proven": minimal_parts_proven}
-        solutions.append({"rank": rank, "build": build, "stats": stats, "score": score, "proof": proof})
+        acquisition_details = []
+        for part in stats["parts"]:
+            status = availability.acquisition_status(part["template_id"]) if availability is not None else {
+                "status": "not_checked", "sources": [], "conditions": [],
+                "reason": "explicit template research mode; obtainability is not asserted",
+            }
+            acquisition_details.append({"template_id": part["template_id"], "slot": part["slot"], "path": part["path"], **status})
+        solutions.append({"rank": rank, "build": build, "stats": stats, "score": score, "proof": proof, "acquisition": acquisition_details})
         terminal = "optimal" if primary_proven else "feasible"
         if not primary_proven or (mode == "pareto" and not secondary_proven):
             break
@@ -305,6 +319,7 @@ def optimize(catalog, weapon_id, *, objective="weighted", recoil_weight="1", erg
         "status": terminal,
         "weapon": {"template_id": weapon_id, "name": catalog.name(weapon_id)},
         "source": catalog.source,
+        "solve_context": solve_context(catalog, acquisition, availability.allowed_ids if availability is not None else None),
         "objective": {
             "kind": kind,
             "recoil_weight": str(wr),
@@ -316,6 +331,7 @@ def optimize(catalog, weapon_id, *, objective="weighted", recoil_weight="1", erg
         "constraints": {
             "min_capacity": min_capacity,
             "launcher": launcher,
+            "acquisition": acquisition,
             "state": "unfolded, unloaded; no ammunition, skill, durability or dynamic recoil modifiers",
         },
         "search": {

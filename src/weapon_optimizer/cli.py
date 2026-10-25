@@ -1,16 +1,20 @@
-"""Agent-facing JSON-only command-line entry point for the read-only optimizer."""
+"""Read-only optimizer CLI with JSON results and explicit human-readable trees."""
 
 from __future__ import annotations
 
 import argparse
-import json
+import simplejson as json
 import math
 import sys
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Sequence
 
-from .data import Catalog, DataError, WEAPON_CATEGORY, load_live, load_snapshot, save_snapshot
+from .data import Catalog, DataError, WEAPON_CATEGORY, load_live, load_snapshot, save_snapshot, solve_context
+from .acquisition import Availability
+from .evaluate import evaluate_build
+from .local import enrich_catalog
+from .presentation import render_result
 
 
 class _CLIError(ValueError):
@@ -26,7 +30,7 @@ class _ParserExit(Exception):
 
 
 def _emit(value: Any) -> None:
-    sys.stdout.write(json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":")) + "\n")
+    sys.stdout.write(json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":"), use_decimal=True) + "\n")
 
 
 class _JSONParser(argparse.ArgumentParser):
@@ -93,16 +97,29 @@ def _add_source_options(parser: argparse.ArgumentParser) -> None:
     group.add_argument("--snapshot", type=Path, help="complete snapshot produced by the snapshot command")
     group.add_argument("--server", help="runtime server base URL; reads only items and English locale")
     _add_live_options(parser)
+    parser.add_argument("--installation", type=Path, help="explicit local installation root for Chinese names, compatibility, and acquisition evidence")
 
 
 def _parser() -> _JSONParser:
-    parser = _JSONParser(prog="spt-build", description="Read-only SPT virtual attachment-tree optimizer; all output is JSON.")
+    parser = _JSONParser(prog="spt-build", description="Read-only SPT attachment-tree optimizer; JSON or localized tree output.")
     commands = parser.add_subparsers(dest="command", required=True)
 
     snapshot = commands.add_parser("snapshot", help="explicitly save complete runtime items, locale, and reproducibility metadata")
     snapshot.add_argument("--server", required=True)
     _add_live_options(snapshot)
     snapshot.add_argument("--output", type=Path, required=True, help="explicit destination; there is no implicit snapshot path")
+    snapshot.add_argument("--installation", type=Path, help="also capture local Chinese names and acquisition/compatibility evidence")
+
+    prepare = commands.add_parser("prepare", help="enrich a complete offline snapshot from an explicit local installation")
+    prepare.add_argument("--snapshot", type=Path, required=True)
+    prepare.add_argument("--installation", type=Path, required=True)
+    prepare.add_argument("--output", type=Path, required=True)
+
+    render = commands.add_parser("render", help="render a saved build result with exact localized short/full names")
+    _add_source_options(render)
+    render.add_argument("--build", type=Path, required=True)
+    render.add_argument("--solution", type=_positive_int, help="one-based solution rank; default renders all solutions")
+    render.add_argument("--language", choices=("ch", "en"), default="ch")
 
     weapons = commands.add_parser("weapons", help="list weapon template IDs and localized names without selecting a weapon")
     _add_source_options(weapons)
@@ -120,17 +137,23 @@ def _parser() -> _JSONParser:
     optimize.add_argument("--time-limit", type=_positive_float, default=30.0)
     optimize.add_argument("--workers", type=_positive_int, default=1)
     optimize.add_argument("--mode", choices=("top", "pareto"), default="top")
+    optimize.add_argument("--acquisition", choices=("required", "templates"), default="required", help="require evidenced acquisition sources; templates explicitly skips acquisition checks")
+    optimize.add_argument("--format", choices=("json", "tree"), default="json")
+    optimize.add_argument("--language", choices=("ch", "en"), default="ch", help="tree display language with English fallback")
     return parser
 
 
 def _catalog(args: argparse.Namespace) -> Catalog:
     if getattr(args, "snapshot", None) is not None:
-        if args.session is not None or args.insecure_loopback:
+        if getattr(args, "session", None) is not None or getattr(args, "insecure_loopback", False):
             raise _CLIError("--session and --insecure-loopback can only be used with --server")
-        return load_snapshot(args.snapshot)
-    if not args.session:
-        raise _CLIError("--server requires an explicit --session PHPSESSID")
-    return load_live(args.server, args.session, insecure_loopback=args.insecure_loopback)
+        catalog = load_snapshot(args.snapshot)
+    else:
+        if not args.session:
+            raise _CLIError("--server requires an explicit --session PHPSESSID")
+        catalog = load_live(args.server, args.session, insecure_loopback=args.insecure_loopback)
+    installation = getattr(args, "installation", None)
+    return enrich_catalog(catalog, installation) if installation is not None else catalog
 
 
 def _weapons(catalog: Catalog, query: str = "") -> list[dict[str, str]]:
@@ -159,9 +182,9 @@ def _weapon_id(catalog: Catalog, requested: str) -> str:
     )
 
 
-def _run(args: argparse.Namespace) -> dict[str, Any]:
+def _run(args: argparse.Namespace) -> dict[str, Any] | str:
     catalog = _catalog(args)
-    if args.command == "snapshot":
+    if args.command in {"snapshot", "prepare"}:
         source = save_snapshot(catalog, args.output)
         return {
             "status": "ok",
@@ -172,6 +195,34 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
         }
     if args.command == "weapons":
         return {"weapons": _weapons(catalog, args.query), "source": catalog.source}
+    if args.command == "render":
+        try:
+            with args.build.open("r", encoding="utf-8-sig") as stream:
+                result = json.load(stream, use_decimal=True)
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise DataError(f"cannot read build result {args.build}: {exc}") from None
+        if not isinstance(result, dict):
+            raise DataError("build result must be an object")
+        solutions = result.get("solutions")
+        if not isinstance(solutions, list):
+            raise DataError("build result needs a solutions array")
+        availability = Availability(catalog, catalog.acquisition) if result.get("constraints", {}).get("acquisition") == "required" else None
+        for solution in solutions:
+            if not isinstance(solution, dict) or not isinstance(solution.get("build"), dict):
+                raise DataError("saved solution needs a build tree")
+            stats = evaluate_build(catalog, solution["build"])
+            comparable = json.loads(json.dumps(stats, use_decimal=True), use_decimal=True)
+            if comparable != solution.get("stats"):
+                raise DataError("saved build statistics do not match the selected snapshot")
+            if availability is not None:
+                for part in stats["parts"]:
+                    if part["template_id"] not in availability.allowed_ids:
+                        raise DataError(f"saved build attachment has no evidenced acquisition source: {part['template_id']}")
+        acquisition_mode = result.get("constraints", {}).get("acquisition", "templates")
+        current_context = solve_context(catalog, acquisition_mode, availability.allowed_ids if availability is not None else None)
+        if result.get("solve_context") != current_context:
+            raise DataError("saved proof does not match this search context; optimize again with the selected snapshot")
+        return render_result(catalog, result, language=args.language, rank=args.solution)
 
     weapon_id = _weapon_id(catalog, args.weapon)
     if args.objective == "weighted" and Decimal(args.recoil_weight) == 0 and Decimal(args.ergo_weight) == 0:
@@ -190,16 +241,21 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
         time_limit=args.time_limit,
         workers=args.workers,
         mode=args.mode,
+        acquisition=args.acquisition,
     )
-    return result
+    return render_result(catalog, result, language=args.language) if args.format == "tree" else result
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Emit one JSON result/error and return a conventional process exit code."""
+    """Emit JSON by default, or an explicitly requested tree, with process status."""
     args: argparse.Namespace | None = None
     try:
         args = _parser().parse_args(argv)
-        _emit(_run(args))
+        result = _run(args)
+        if isinstance(result, str):
+            sys.stdout.write(result)
+        else:
+            _emit(result)
         return 0
     except _ParserExit as exc:
         return exc.status
@@ -211,7 +267,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
     except DataError as exc:
         message = str(exc)
-        if args is not None and args.session:
+        if args is not None and getattr(args, "session", None):
             message = message.replace(args.session, "<redacted>")
         _emit({"error": {"code": "data_error", "message": message}})
         return 1
@@ -223,7 +279,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 130
     except Exception as exc:
         message = str(exc)
-        if args is not None and args.session:
+        if args is not None and getattr(args, "session", None):
             message = message.replace(args.session, "<redacted>")
         _emit({"error": {"code": "internal_error", "message": message}})
         return 1

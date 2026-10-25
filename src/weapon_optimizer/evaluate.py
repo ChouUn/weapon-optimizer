@@ -6,6 +6,7 @@ from collections import Counter
 from fractions import Fraction
 from typing import Any
 
+from .compatibility import Compatibility
 from .data import Catalog
 
 
@@ -51,8 +52,8 @@ def magazine_capacity(catalog: Catalog, template_id: str) -> int:
 def evaluate_build(catalog: Catalog, build: dict) -> dict[str, Any]:
     """Evaluate unfolded template stats without ammo, skills, or game mutation.
 
-    ConflictingItems contains exact template IDs, not category filters: the
-    client's Slot.CheckConflictingItems compares both directions by TemplateId.
+    Raw client conflicts use exact template IDs; Compatibility additionally
+    enforces evidence-backed clone propagation and cosmetic content consistency.
     Weapon.GetCurrentMagazine only uses the root's direct mod_magazine slot;
     its virtual MaxCount is evaluated without nested or linked weapon magazines.
     """
@@ -148,8 +149,9 @@ def evaluate_build(catalog: Catalog, build: dict) -> dict[str, Any]:
 
     # Count instances rather than deduplicating template IDs: two copies of a
     # self-conflicting template conflict, but one does not conflict with itself.
+    compatibility = Compatibility(catalog)
     for template_id in template_counts:
-        for conflicting_id in catalog.conflicts(template_id):
+        for conflicting_id in compatibility.conflicts(template_id):
             if template_counts[conflicting_id] > (1 if conflicting_id == template_id else 0):
                 raise ValueError(f"conflicting templates: {template_id} and {conflicting_id}")
 
