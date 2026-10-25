@@ -10,7 +10,7 @@ from ortools.sat.python import cp_model
 
 from .acquisition import Availability
 from .compatibility import Compatibility
-from .data import solve_context
+from .data import SUPPRESSOR_CATEGORY, solve_context
 from .evaluate import evaluate_build, magazine_capacity
 
 WEAPON = "5422acb9af1c889c16000029"
@@ -69,7 +69,7 @@ def _graph(catalog, root, allowed_ids=None):
 
 
 class _Model:
-    def __init__(self, catalog, root, min_capacity, launcher, allowed_ids=None):
+    def __init__(self, catalog, root, min_capacity, launcher, allowed_ids=None, *, require_suppressor=False):
         self.catalog = catalog
         self.root = root
         self.model = cp_model.CpModel()
@@ -132,6 +132,7 @@ class _Model:
 
         capacities = []
         launchers = []
+        suppressors = []
         for (path, tid), var in self.variables.items():
             if path == ("mod_magazine",):
                 if not catalog.is_a(tid, MAGAZINE):
@@ -140,11 +141,15 @@ class _Model:
                     capacities.append(magazine_capacity(catalog, tid) * var)
             if path and catalog.is_a(tid, LAUNCHER):
                 launchers.append(var)
+            if require_suppressor and path and catalog.is_a(tid, SUPPRESSOR_CATEGORY):
+                suppressors.append(var)
         self.model.add(sum(capacities) >= min_capacity)
         if launcher == "required":
             self.model.add(sum(launchers) >= 1)
         elif launcher == "forbidden":
             self.model.add(sum(launchers) == 0)
+        if require_suppressor:
+            self.model.add(sum(suppressors) >= 1)
 
         keys = [key for key in self.variables if key[0]]
         base_ergo = _number(catalog.props(root).get("Ergonomics", 0))
@@ -190,7 +195,7 @@ class _Model:
         return nodes[()]
 
 
-def optimize(catalog, weapon_id, *, objective="weighted", recoil_weight="1", ergo_weight="1", min_capacity=0, launcher="any", limit=3, time_limit=30.0, workers=1, mode="top", acquisition="required"):
+def optimize(catalog, weapon_id, *, objective="weighted", recoil_weight="1", ergo_weight="1", min_capacity=0, launcher="any", limit=3, time_limit=30.0, workers=1, mode="top", acquisition="required", require_suppressor=False):
     """Return ranked builds or proven Pareto points, with explicit proof scope.
 
     Limits apply to the complete call (model construction included). An unproven
@@ -198,6 +203,8 @@ def optimize(catalog, weapon_id, *, objective="weighted", recoil_weight="1", erg
     """
     if objective not in {"weighted", "recoil", "ergo"} or mode not in {"top", "pareto"}:
         raise ValueError("Invalid objective or mode")
+    if not isinstance(require_suppressor, bool):
+        raise ValueError("require_suppressor must be a boolean")
     if acquisition not in {"required", "templates"}:
         raise ValueError("Invalid acquisition mode")
     availability = Availability(catalog, catalog.acquisition) if acquisition == "required" else None
@@ -216,7 +223,7 @@ def optimize(catalog, weapon_id, *, objective="weighted", recoil_weight="1", erg
         raise ValueError(f"Not a weapon template: {weapon_id}")
     start = time.monotonic()
     deadline = start + time_limit
-    problem = _Model(catalog, weapon_id, min_capacity, launcher, availability.allowed_ids if availability is not None else None)
+    problem = _Model(catalog, weapon_id, min_capacity, launcher, availability.allowed_ids if availability is not None else None, require_suppressor=require_suppressor)
     kind = "recoil" if mode == "pareto" else objective
     primary, scale, secondary = problem.objective(kind, wr, we)
     solutions = []
@@ -283,7 +290,7 @@ def optimize(catalog, weapon_id, *, objective="weighted", recoil_weight="1", erg
         if primary_proven:
             problem.model.add(gate == 0)
         problem.model.clear_hints()
-        stats = evaluate_build(catalog, build)
+        stats = evaluate_build(catalog, build, require_suppressor=require_suppressor)
         reduction = -problem.recoil_direction * _number(stats["recoil_modifier_percent"])
         score = float(wr * reduction + we * _number(stats["ergonomics_effective"]))
         proof = {"status": "optimal" if primary_proven else "feasible", "scope": "pareto_point" if mode == "pareto" and primary_proven and secondary_proven else "all_builds" if rank == 1 else "remaining_builds", "objective_value": value / scale, "best_bound": bound / scale, "gap": max(0.0, (bound - value) / max(1.0, abs(value))), "original_global_optimum": mode == "top" and primary_proven and value == first_value, "tie_break_proven": secondary_proven, "minimal_parts_proven": minimal_parts_proven}
@@ -332,6 +339,7 @@ def optimize(catalog, weapon_id, *, objective="weighted", recoil_weight="1", erg
             "min_capacity": min_capacity,
             "launcher": launcher,
             "acquisition": acquisition,
+            "require_suppressor": require_suppressor,
             "state": "unfolded, unloaded; no ammunition, skill, durability or dynamic recoil modifiers",
         },
         "search": {

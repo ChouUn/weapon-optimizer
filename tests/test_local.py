@@ -9,7 +9,7 @@ import tempfile
 import unittest
 
 from weapon_optimizer.cli import main
-from weapon_optimizer.data import DataError, _digest, save_snapshot, solve_context
+from weapon_optimizer.data import DataError, SUPPRESSOR_CATEGORY, _digest, save_snapshot, solve_context
 from weapon_optimizer.evaluate import evaluate_build
 from weapon_optimizer.local import load_chinese_locale
 from weapon_optimizer.optimizer import optimize
@@ -79,6 +79,35 @@ class LocalPresentationTests(unittest.TestCase):
         with redirect_stdout(output):
             code = main(["render", "--snapshot", str(snapshot), "--build", str(result_path)])
         self.assertEqual(code, 2)
+        self.assertEqual(json.loads(output.getvalue())["error"]["code"], "invalid_arguments")
+
+    def test_render_revalidates_suppressor_requirement_even_for_unshown_solutions(self):
+        catalog = catalog_with(
+            item("quiet", SUPPRESSOR_CATEGORY, Recoil=-10),
+            item("brake", Recoil=-20),
+            weapon_slots=[slot("mod_muzzle", "quiet", "brake")],
+        )
+        catalog.locale["weapon Name"] = "Weapon"
+        snapshot = self.root / "muzzle-snapshot.json"
+        save_snapshot(catalog, snapshot)
+        result = optimize(catalog, "weapon", acquisition="templates", require_suppressor=True, limit=1)
+        result_path = self.root / "suppressed.json"
+        result_path.write_text(json.dumps(result), encoding="utf-8")
+        arguments = ["render", "--snapshot", str(snapshot), "--build", str(result_path), "--solution", "1"]
+        with redirect_stdout(io.StringIO()):
+            self.assertEqual(main(arguments), 0)
+
+        # Keep the tree and recomputed stats valid; only the declared hard
+        # requirement is violated in a solution outside the requested rank.
+        unsuppressed = node("weapon", None, node("brake", "mod_muzzle"))
+        result["solutions"].append({
+            "rank": 2, "build": unsuppressed, "stats": evaluate_build(catalog, unsuppressed),
+            "proof": {"status": "optimal"},
+        })
+        result_path.write_text(json.dumps(result), encoding="utf-8")
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(main(arguments), 2)
         self.assertEqual(json.loads(output.getvalue())["error"]["code"], "invalid_arguments")
 
     def test_locale_only_changes_do_not_invalidate_optimality(self):

@@ -13,7 +13,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from weapon_optimizer.data import Catalog, DataError, _digest
+from weapon_optimizer.data import Catalog, DataError, SUPPRESSOR_CATEGORY, _digest
 from weapon_optimizer.evaluate import evaluate_build
 from weapon_optimizer.optimizer import optimize as optimize_builds
 from weapon_optimizer.compatibility import Compatibility, load_compatibility
@@ -62,6 +62,7 @@ def catalog_with(*templates, weapon_slots=(), base_ergo=50):
     for template_id, parent in (
         (ITEM, ""), (WEAPON, ITEM), (MOD, ITEM), (MAGAZINE, MOD), (LAUNCHER, MOD), (AMMO, ITEM),
         (CYLINDER, MAGAZINE), (SPRING_CYLINDER, CYLINDER),
+        (SUPPRESSOR_CATEGORY, MOD),
     ):
         entries[template_id] = {
             "_id": template_id, "_name": template_id, "_parent": parent,
@@ -105,7 +106,7 @@ def enumerate_trees(catalog, template_id="weapon", slot_name=None, active=()):
         yield node(template_id, slot_name, *(child for child in combination if child is not None))
 
 
-def oracle(catalog, *, min_capacity=0, launcher="any"):
+def oracle(catalog, *, min_capacity=0, launcher="any", require_suppressor=False):
     """Independent objective/constraint calculation over every tiny build."""
     result = []
     compatibility = Compatibility(catalog)
@@ -134,6 +135,8 @@ def oracle(catalog, *, min_capacity=0, launcher="any"):
                 capacity = catalog.props(magazine_id)["Cartridges"][0]["_max_count"]
         has_launcher = any(catalog.is_a(part["template_id"], LAUNCHER) for part in nodes[1:])
         if capacity < min_capacity or (launcher == "required" and not has_launcher) or (launcher == "forbidden" and has_launcher):
+            continue
+        if require_suppressor and not any(catalog.is_a(part["template_id"], SUPPRESSOR_CATEGORY) for part in nodes[1:]):
             continue
         result.append({
             "build": build, "recoil": recoil, "ergo": ergo,
@@ -989,6 +992,159 @@ class AcquisitionOptimizerTests(unittest.TestCase):
         result = optimize_builds(catalog, "weapon", limit=1)
         self.assertEqual(result["solutions"][0]["build"]["children"][0]["template_id"], "safe")
         evaluate_build(catalog, result["solutions"][0]["build"])
+
+
+class SuppressorRequirementTests(unittest.TestCase):
+    def test_default_keeps_best_brake_and_requirement_selects_suppressor(self):
+        catalog = catalog_with(
+            item("brake", Recoil=-20, Ergonomics=5),
+            item("suppressor", SUPPRESSOR_CATEGORY, Recoil=-10, Ergonomics=-3),
+            weapon_slots=[slot("mod_muzzle", "brake", "suppressor", required=True)],
+        )
+        unrestricted = optimize(catalog, "weapon", limit=1)
+        explicit_false = optimize(catalog, "weapon", require_suppressor=False, limit=1)
+        self.assertEqual(unrestricted["solutions"][0]["build"]["children"][0]["template_id"], "brake")
+        self.assertEqual(unrestricted["solutions"][0]["stats"], explicit_false["solutions"][0]["stats"])
+        with self.assertRaises(ValueError):
+            evaluate_build(catalog, unrestricted["solutions"][0]["build"], require_suppressor=True)
+        required = optimize(catalog, "weapon", require_suppressor=True, limit=1)
+        self.assertEqual(required["status"], "optimal")
+        solution = required["solutions"][0]
+        self.assertEqual(solution["build"]["children"][0]["template_id"], "suppressor")
+        # The requirement validates the tree without changing saved stat shape.
+        self.assertEqual(solution["stats"], evaluate_build(catalog, solution["build"]))
+        self.assertEqual(solution["stats"], evaluate_build(catalog, solution["build"], require_suppressor=True))
+        self.assertAlmostEqual(solution["stats"]["recoil_total"], 270)
+        self.assertEqual(required["constraints"]["require_suppressor"], True)
+
+    def test_multilevel_chain_keeps_non_suppressor_intermediates_and_subtypes(self):
+        subtype = {
+            "_id": "suppressor_subtype", "_name": "Synthetic Suppressor Subtype",
+            "_parent": SUPPRESSOR_CATEGORY, "_type": "Node", "_props": {},
+        }
+        catalog = catalog_with(
+            subtype,
+            item("barrel", Slots=[slot("mod_muzzle", "adapter", required=True)]),
+            item("adapter", Slots=[slot("thread_interface", "brake", required=True)]),
+            item("brake", Recoil=-1.125, Slots=[slot("custom_attachment", "can")]),
+            item("can", "suppressor_subtype", Recoil=-4.125, Ergonomics=-1.25, IsSilenced=False),
+            weapon_slots=[slot("mod_barrel", "barrel", required=True)],
+        )
+        result = optimize(catalog, "weapon", require_suppressor=True, limit=1)
+        self.assertEqual(result["status"], "optimal")
+        solution = result["solutions"][0]
+        self.assertEqual([part["template_id"] for part in flatten(solution["build"])], ["weapon", "barrel", "adapter", "brake", "can"])
+        stats = evaluate_build(catalog, solution["build"], require_suppressor=True)
+        self.assertEqual(stats["recoil_modifier_percent"], -5.25)
+        self.assertEqual(stats["ergonomics_raw"], 48.75)
+        without_can = deepcopy(solution["build"])
+        without_can["children"][0]["children"][0]["children"][0]["children"] = []
+        evaluate_build(catalog, without_can)
+        with self.assertRaises(ValueError):
+            evaluate_build(catalog, without_can, require_suppressor=True)
+
+    def test_names_flags_and_linked_weapon_do_not_substitute_for_selected_category(self):
+        fake = item("fake_silencer", Recoil=-30, Name="Silencer", IsSilenced=True, LinkedWeapon="linked_can")
+        fake["_name"] = "Suppressor"
+        catalog = catalog_with(
+            fake, item("linked_can", SUPPRESSOR_CATEGORY),
+            weapon_slots=[slot("mod_muzzle", "fake_silencer", required=True)],
+        )
+        catalog.props("weapon")["IsSilenced"] = True
+        build = node("weapon", None, node("fake_silencer", "mod_muzzle"))
+        evaluate_build(catalog, build)
+        with self.assertRaises(ValueError):
+            evaluate_build(catalog, build, require_suppressor=True)
+        for mode in ("top", "pareto"):
+            with self.subTest(mode=mode):
+                result = optimize(catalog, "weapon", require_suppressor=True, mode=mode, limit=3)
+                self.assertEqual(result["status"], "infeasible")
+                self.assertEqual(result["solutions"], [])
+
+    def test_required_suppressor_must_be_obtainable_in_the_selected_domain(self):
+        catalog = catalog_with(
+            item("brake", Recoil=-2), item("unproven_can", SUPPRESSOR_CATEGORY, Recoil=-5),
+            weapon_slots=[slot("mod_muzzle", "brake", "unproven_can", required=True)],
+        )
+        catalog.acquisition = obtainable(catalog, {"brake"})
+        self.assertEqual(optimize_builds(catalog, "weapon", limit=1)["solutions"][0]["build"]["children"][0]["template_id"], "brake")
+        for mode in ("top", "pareto"):
+            with self.subTest(mode=mode):
+                result = optimize_builds(catalog, "weapon", require_suppressor=True, mode=mode, limit=3)
+                self.assertEqual(result["status"], "infeasible")
+                self.assertEqual(result["solutions"], [])
+        research = optimize(catalog, "weapon", require_suppressor=True, limit=1)
+        self.assertEqual(research["solutions"][0]["build"]["children"][0]["template_id"], "unproven_can")
+        evaluate_build(catalog, research["solutions"][0]["build"], require_suppressor=True)
+
+    def test_required_suppressor_cannot_bypass_existing_deep_conflicts(self):
+        catalog = catalog_with(
+            item("barrel", Slots=[slot("mod_muzzle", "brake", "can", required=True)]),
+            item("brake", Recoil=-2), item("can", SUPPRESSOR_CATEGORY, Recoil=-10),
+            item("guard", ConflictingItems=["can"]),
+            weapon_slots=[slot("mod_barrel", "barrel", required=True), slot("mod_handguard", "guard", required=True)],
+        )
+        baseline = optimize(catalog, "weapon", limit=1)
+        self.assertEqual(baseline["status"], "optimal")
+        self.assertNotIn("can", {part["template_id"] for part in flatten(baseline["solutions"][0]["build"])})
+        invalid = node("weapon", None, node("barrel", "mod_barrel", node("can", "mod_muzzle")), node("guard", "mod_handguard"))
+        with self.assertRaises(ValueError):
+            evaluate_build(catalog, invalid, require_suppressor=True)
+        for mode in ("top", "pareto"):
+            with self.subTest(mode=mode):
+                result = optimize(catalog, "weapon", require_suppressor=True, mode=mode, limit=3)
+                self.assertEqual(result["status"], "infeasible")
+                self.assertEqual(result["solutions"], [])
+
+    def test_top_k_and_pareto_match_exhaustive_suppressor_only_oracle(self):
+        catalog = catalog_with(
+            item("best_brake", Recoil=-30, Ergonomics=20),
+            item("recoil_can", SUPPRESSOR_CATEGORY, Recoil=-12, Ergonomics=-10),
+            item("recoil_can_twin", SUPPRESSOR_CATEGORY, Recoil=-12, Ergonomics=-10),
+            item("middle_can", SUPPRESSOR_CATEGORY, Recoil=-7),
+            item("ergo_can", SUPPRESSOR_CATEGORY, Recoil=-2, Ergonomics=10),
+            item("dominated_can", SUPPRESSOR_CATEGORY, Recoil=-6, Ergonomics=-5),
+            weapon_slots=[slot("mod_muzzle", "best_brake", "recoil_can", "recoil_can_twin", "middle_can", "ergo_can", "dominated_can", required=True)],
+        )
+        rows = oracle(catalog, require_suppressor=True)
+        expected_builds = {fingerprint(row["build"]) for row in rows}
+        ranked = optimize(catalog, "weapon", require_suppressor=True, limit=10)
+        self.assertEqual(ranked["status"], "optimal")
+        self.assertTrue(ranked["search"]["exhausted"])
+        self.assertEqual({fingerprint(solution["build"]) for solution in ranked["solutions"]}, expected_builds)
+        self.assertEqual([solution["score"] for solution in ranked["solutions"]], sorted((float(-row["recoil"] + row["ergo"]) for row in rows), reverse=True))
+        points = {(row["recoil"], row["ergo"]) for row in rows}
+        expected_front = sorted(point for point in points if not any(
+            other != point and other[0] <= point[0] and other[1] >= point[1] for other in points
+        ))
+        pareto = optimize(catalog, "weapon", require_suppressor=True, mode="pareto", limit=10)
+        self.assertEqual(pareto["status"], "optimal")
+        self.assertTrue(pareto["search"]["exhausted"])
+        self.assertEqual([(solution["stats"]["recoil_modifier_percent"], solution["stats"]["ergonomics_effective"]) for solution in pareto["solutions"]], expected_front)
+        for solution in [*ranked["solutions"], *pareto["solutions"]]:
+            self.assertEqual(solution["proof"]["status"], "optimal")
+            self.assertEqual(evaluate_build(catalog, solution["build"], require_suppressor=True), solution["stats"])
+
+    def test_no_installed_parts_cannot_satisfy_requirement_even_for_suppressor_root(self):
+        entries = deepcopy(catalog_with().items)
+        entries[WEAPON]["_parent"] = SUPPRESSOR_CATEGORY
+        catalog = Catalog(entries)
+        self.assertTrue(catalog.is_a("weapon", SUPPRESSOR_CATEGORY))
+        evaluate_build(catalog, node("weapon"))
+        with self.assertRaises(ValueError):
+            evaluate_build(catalog, node("weapon"), require_suppressor=True)
+        result = optimize(catalog, "weapon", require_suppressor=True, limit=1)
+        self.assertEqual(result["status"], "infeasible")
+        self.assertEqual(result["solutions"], [])
+
+    def test_requirement_requires_a_boolean_not_a_truthy_coercion(self):
+        catalog = catalog_with()
+        for value in (0, 1, None, "true", [], {}):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    optimize(catalog, "weapon", require_suppressor=value, limit=1)
+                with self.assertRaises(ValueError):
+                    evaluate_build(catalog, node("weapon"), require_suppressor=value)
 
 
 if __name__ == "__main__":

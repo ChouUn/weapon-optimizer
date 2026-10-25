@@ -7,7 +7,7 @@
 > Maintain: living — 持续更新，保持内容有效
 
 `spt-build` 是供 Agent 调用的只读命令行工具，它输出的配件树也便于玩家在游戏里照着找件。
-给定一把枪的精确模板 ID，它在 SPT 运行时物品数据中搜索完整配件树（虚拟 build），求后坐力最低、人机工效最高或二者加权最优的方案，可附加弹匣容量下限和下挂（枪挂榴弹发射器）硬条件。
+给定一把枪的精确模板 ID，它在 SPT 运行时物品数据中搜索完整配件树（虚拟 build），求后坐力最低、人机工效最高或二者加权最优的方案，可附加弹匣容量下限、下挂（枪挂榴弹发射器）和消音器硬条件。
 默认只选用有可核对的非随机购买来源（商人、跳蚤或买整枪拆件）的配件，JSON 结果逐件记录来源与解锁条件。
 这些来源可能要求商人信赖等级、任务等条件，工具不读取角色进度和当前库存。
 结果默认以一行 JSON 写到 stdout，也可输出带中文部位名和游戏内名称的配件树。
@@ -87,6 +87,11 @@ uv run python -m unittest discover -s tests -v
    - `solutions[i]` 含配件树 `build`、统计 `stats`、证明状态 `proof` 和逐件来源与条件 `acquisition`，见 [输出契约](#输出契约)。
    - 时限内未证明最优时 `proof.status` 为 `feasible`，可加大 `--time-limit` 或 `--workers` 后重跑。
    - 只想看树时，去掉重定向并加 `--format tree`，直接在终端输出。
+   - 还要求装消音器时加 `--require-suppressor`，其余条件不变。六款 Hexagon Cheese Grater 护木在获取性证据中没有来源，默认已被排除，不需要额外参数：
+
+     ```sh
+     uv run spt-build optimize --snapshot snapshots/ak101-installation-v3.json --weapon 692066c72a67c15014e8216c --launcher required --min-capacity 30 --require-suppressor --solutions 1 --time-limit 60 > ../../.tmp/weapon-optimizer/ak101-suppressor.json
+     ```
 
 4. 把保存的结果画成中文配件树：
 
@@ -127,6 +132,7 @@ uv run python -m unittest discover -s tests -v
 |`--recoil-weight`、`--ergo-weight`|`1`|非负十进制数，`weighted` 要求至少一个为正。输出写成约分后的分数字符串，如 `0.5` 写作 `"1/2"`|
 |`--min-capacity`|`0`|当前弹匣容量下限，口径见 [模型规则](#模型规则)|
 |`--launcher`|`any`|`required` 要求至少一件 Launcher 类别配件，`forbidden` 禁止任何一件|
+|`--require-suppressor`|关闭|要求树中装有消音器，口径见 [模型规则](#模型规则)。输出的 `constraints.require_suppressor` 记录是否开启|
 |`--acquisition`|`required`|`required` 只用有已记录获取来源的配件，数据源缺少获取性证据时报错。`templates` 显式跳过获取性检查，只用于模板研究，结果不代表能买到|
 |`--mode`|`top`|`top` 或 `pareto`，见 [top 与 Pareto](#top-与-pareto)|
 |`--solutions`|`3`|`top` 的 build 数或 `pareto` 的点数上限|
@@ -146,12 +152,14 @@ uv run python -m unittest discover -s tests -v
 - 装配合法，冲突按当前 [兼容层](#兼容层) 判断。
 - 重算的 `stats` 与文件中保存的完全一致。
 - 结果的 `constraints.acquisition` 为 `required` 时，每件配件在数据源的获取性证据中都有已记录来源。
+- 结果的 `constraints.require_suppressor` 为 `true` 时，每个解的树中都装有消音器。没有该字段的已有结果按未要求处理，仍可渲染。
 - 结果的 `solve_context` 与按所给数据源重算的完全一致，含义见 [证明上下文](#证明上下文)。缺少该字段的旧结果（含全部 [历史样例](#历史样例与验证记录)）或上下文不符时，需用所选数据源重新 `optimize`。
 
 Python 调用方：
 
 - `weapon_optimizer.data.load_snapshot(path)` 得到 catalog，需要现场读取本地证据时再经 `weapon_optimizer.local.enrich_catalog(catalog, installation_root)`。
 - `weapon_optimizer.optimizer.optimize(catalog, weapon_id, ...)` 的关键字参数与 CLI 同名（连字符换成下划线，`limit` 对应 `--solutions`），权重另接受 `"1/3"` 这类分数字符串。
+- `weapon_optimizer.evaluate.evaluate_build(catalog, build, *, require_suppressor=False)` 独立校验一棵树并返回 `stats`，`require_suppressor=True` 时树中没有消音器即抛出 `ValueError`。
 - `weapon_optimizer.presentation.render_result(catalog, result, language="ch", rank=None)` 返回配件树文本，不做上述 `render` 校验。
 
 ## 本地证据
@@ -249,7 +257,7 @@ Python 调用方：
 每个解输出一段：
 
 1. 标题 `配装 #名次｜状态：…`，`proof.status` 不是 `optimal` 时追加「（未证明最优）」。
-2. 摘要：有效人机工效、垂直与水平后坐力、弹匣发数。
+2. 摘要：有效人机工效、垂直与水平后坐力、弹匣发数。结果要求消音器时末尾追加 `｜枪口要求：消音器子类型`。
 3. 获取性模式：`required` 显示已按记录来源筛选、未读取角色解锁状态，其他情况显示「获取性：未筛选，仅供模板研究。」。
 4. 配件树，枪身为第一行，部位写作 `[武器]`。
 
@@ -281,6 +289,12 @@ Python 调用方：
 - 不装弹：弹药类别不作候选，包括转轮弹巢的 `camora_` 槽。
 - 容量：只看枪身直系 `mod_magazine` 槽里的弹匣，下挂等其他位置的弹匣不计。普通弹匣取 `Cartridges[0]._max_count`。转轮弹巢（类别 `610720f290b75a49ff2e5e25` 即 CylinderMagazine 及其子类 SpringDrivenCylinder）取直系 `camora_` 槽数。
 - 下挂：Launcher 类别（`55818b014bdc2ddc698b456b`，英文名 UBGL）的配件在任意深度都算。
+- 消音器：开启 `--require-suppressor` 时，树中任意深度至少有一件配件按类别继承属于 Silencer（`550aa4cd4bdc2dd8348b456c`）或其子类别。
+  - 只按类别判断，不看名称或 `IsSilenced` 属性。
+  - 消音器可以装在任何合法的转接器、制退器或枪管上，这些中间件不要求也是消音器。
+  - `LinkedWeapon` 指向的联动武器不算树的一部分。
+  - 不改变候选集合，与容量、下挂、获取性和兼容层规则同时生效。没有同时满足这些条件的消音器时结果为 `infeasible`，不会放宽条件。
+  - `stats` 不另设消音器字段。
 - 状态：枪托展开、未装弹，不含技能、耐久、弹药及射击时的动态后坐力修正。只有 Mod 类别的子件计入属性。
 
 属性公式与客户端（`EscapeFromTarkov_Data/Managed/Assembly-CSharp.dll`）IL 对应如下。
@@ -372,7 +386,7 @@ Python 调用方：
 
 |`error.code`|退出码|情形|
 |---|---|---|
-|`invalid_arguments`|2|参数非法、会话 ID 格式不对，模型无法精确建立（模板循环、数值超出精确整数范围），或 `render` 的结果装配不合法、含冲突|
+|`invalid_arguments`|2|参数非法、会话 ID 格式不对，模型无法精确建立（模板循环、数值超出精确整数范围），或 `render` 的结果装配不合法、含冲突、缺少要求的消音器|
 |`invalid_weapon`|2|`--weapon` 不是精确武器模板 ID|
 |`data_error`|1|GET 失败，快照缺失、不是 schema 3 或哈希不符，快照输出越界或目标已存在，模板继承链损坏，`required` 模式缺少获取性证据，证据与物品数据不符，本地证据无法读取或无法确定覆盖顺序，TGC 程序集版本未经检查，`render` 的结果文件无法读取、名次越界、统计不符、配件没有已记录来源，或 `solve_context` 缺失、与数据源不符|
 |`internal_error`|1|其他异常|
@@ -393,13 +407,14 @@ Python 调用方：
 
 |检查|实际结果|
 |---|---|
-|完整回归|`uv run python -m unittest discover -s tests`：110 项通过|
+|完整回归|`uv run python -m unittest discover -s tests`：119 项通过，包含消音器约束与保存结果重验|
 |正式 `prepare`|已生成 `snapshots/ak101-installation-v3.json`，7084 个模板、39805 条英文名称，另含中文名称与获取性、兼容性证据|
 |原始数据保留|schema 2 原文件未覆盖，原文件 SHA-256 为 `fb26e7cf5053ac776653a78bc11be8b7de5e5f6b694f3c8b7ea981a852eab9c3`；items 保序摘要仍为 `313e8c3fc71ed17b6d588327b4ff58d5362483725395110b1adad5e05576856f`|
 |真实兼容关系|黑、红、黄三款 UMS 均与 MOE 托垫及 TGC Modded MOE 互斥；原始黄色款遗漏的托垫冲突已进入有效关系|
 |正式 `optimize`|AK-101 Unique，weighted 1:1、容量 ≥ 30、必须下挂、默认获取性筛选、单线程、请求 60 s；求解报告耗时 62.438 s，主目标 145.5 与并列优先已证明，最少配件数未证明|
 |结果复核|GP-25、35 发弹匣、19 件配件；六款 Cheese Grater、GP-34、随机包通用核心均未入选；逐件来源与重算统计通过|
 |正式树输出|新结果经 `render` 成功输出完整树；另以 APB 在 `optimize --format tree` 路径实际取得完整树|
+|消音器约束|实际离线 CLI 已验证默认制退器、开启后转接器挂消音器子类、无可获取消音器时无解，以及原有未要求结果仍能渲染；完整证据见[消音器验证记录](../../docs/reports/2026-10-25-weapon-optimizer-suppressor.md#验证)|
 
 当前 AK-101 结果保存在 [ak101-smg-wwii-unique-gp25-obtainable.json](builds/ak101-smg-wwii-unique-gp25-obtainable.json)。其 19 件配件均有配置支持的动态跳蚤来源，跳蚤开放等级为 15，单件附加等级为 0，分级跳蚤关闭；这不是当前报价或库存保证。
 
@@ -409,6 +424,8 @@ Python 调用方：
 uv run spt-build render --snapshot snapshots/ak101-installation-v3.json --build builds/ak101-smg-wwii-unique-gp25-obtainable.json
 ```
 
+要求消音器的 AK-101、GP-25、容量 ≥ 30 结果另存为 [ak101-smg-wwii-unique-gp25-suppressed.json](builds/ak101-smg-wwii-unique-gp25-suppressed.json)，没有覆盖上面的未要求结果；完整参数、数值与恢复依据见[消音器硬约束记录](../../docs/reports/2026-10-25-weapon-optimizer-suppressor.md)。
+
 修改范围、恢复依据与实机验证边界见[本地修复记录](../../docs/reports/2026-10-25-weapon-optimizer-usability.md)。
 
 ## 历史样例与验证记录
@@ -417,7 +434,7 @@ uv run spt-build render --snapshot snapshots/ak101-installation-v3.json --build 
 它们只说明当时模板规则下的最优值，不能当作可购买或可直接装配的方案。
 
 - `examples/` 的六份样例见下表。四个 AK-12 样例的全部 8 个 build 都装了 GP-34（`5648b62b4bdc2d9d488b4585`）。GP-34 在本地全局物品黑名单 `SPT_Runtime/SPT_Data/configs/item.json` 中，基础商人货架也没有它。
-- `builds/` 的两份 AK-101 Unique 结果由一次性脚本求得，`constraints` 中的 `launcher_template_id`（固定 GP-25 Kostyor）和 `excluded_template_ids`（第二份排除六款 Hexagon Cheese Grater 护木）不是 CLI 参数。两份都在约 60 s 后停在 `feasible`，主目标未证明。
+- `builds/` 中的另两份历史 AK-101 Unique 结果由一次性脚本求得，`constraints` 中的 `launcher_template_id`（固定 GP-25 Kostyor）和 `excluded_template_ids`（第二份排除六款 Hexagon Cheese Grater 护木）不是 CLI 参数。两份都在约 60 s 后停在 `feasible`，主目标未证明。
   - [ak101-smg-wwii-unique-gp25-no-cheese-grater.json](builds/ak101-smg-wwii-unique-gp25-no-cheese-grater.json) 含 Phase5 UMS（黄色）、MOE Carbine stock (Modded) 与 MOE 橡胶托垫，正是 [兼容层](#兼容层) 例子中现在会被拒绝的组合。
   - [ak101-smg-wwii-unique-gp25.json](builds/ak101-smg-wwii-unique-gp25.json) 未按当前规则复核。
 - 六份样例保留采集时的 `source.hash_format` 与旧版 sorted-key `content_sha256`，不能与 schema 3 的保序摘要直接比较，也不能仅据差异判定数据变化。

@@ -95,6 +95,8 @@ def render_result(catalog: Catalog, result: dict[str, Any], *, language: str = "
             f"水平后坐力：{stats.get('recoil_horizontal', '?')}｜"
             f"弹匣：{stats.get('magazine_capacity', '?')} 发"
         )
+        if result.get("constraints", {}).get("require_suppressor", False):
+            summary += "｜枪口要求：消音器子类型"
         availability = (
             "获取性：按已记录来源筛选；角色等级、商人及任务解锁状态未读取。"
             if acquisition_mode == "required"

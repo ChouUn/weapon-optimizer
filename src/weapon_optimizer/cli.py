@@ -133,6 +133,7 @@ def _parser() -> _JSONParser:
     optimize.add_argument("--ergo-weight", type=_weight, default="1")
     optimize.add_argument("--min-capacity", type=_nonnegative_int, default=0)
     optimize.add_argument("--launcher", choices=("any", "required", "forbidden"), default="any")
+    optimize.add_argument("--require-suppressor", action="store_true", help="require an installed attachment in the Silencer subtype, including descendants")
     optimize.add_argument("--solutions", type=_positive_int, default=3)
     optimize.add_argument("--time-limit", type=_positive_float, default=30.0)
     optimize.add_argument("--workers", type=_positive_int, default=1)
@@ -210,7 +211,7 @@ def _run(args: argparse.Namespace) -> dict[str, Any] | str:
         for solution in solutions:
             if not isinstance(solution, dict) or not isinstance(solution.get("build"), dict):
                 raise DataError("saved solution needs a build tree")
-            stats = evaluate_build(catalog, solution["build"])
+            stats = evaluate_build(catalog, solution["build"], require_suppressor=result.get("constraints", {}).get("require_suppressor", False))
             comparable = json.loads(json.dumps(stats, use_decimal=True), use_decimal=True)
             if comparable != solution.get("stats"):
                 raise DataError("saved build statistics do not match the selected snapshot")
@@ -237,6 +238,7 @@ def _run(args: argparse.Namespace) -> dict[str, Any] | str:
         ergo_weight=args.ergo_weight,
         min_capacity=args.min_capacity,
         launcher=args.launcher,
+        require_suppressor=args.require_suppressor,
         limit=args.solutions,
         time_limit=args.time_limit,
         workers=args.workers,

@@ -24,6 +24,7 @@ from typing import Any
 MOD_CATEGORY = "5448fe124bdc2da5018b4567"
 MAGAZINE_CATEGORY = "5448bc234bdc2d3c308b4569"
 LAUNCHER_CATEGORY = "55818b014bdc2ddc698b456b"
+SUPPRESSOR_CATEGORY = "550aa4cd4bdc2dd8348b456c"
 WEAPON_CATEGORY = "5422acb9af1c889c16000029"
 SNAPSHOT_SCHEMA_VERSION = 3
 HASH_FORMAT = "sha256 of UTF-8 JSON, object order preserved, compact separators, ensure_ascii=false"

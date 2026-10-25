@@ -7,7 +7,7 @@ from fractions import Fraction
 from typing import Any
 
 from .compatibility import Compatibility
-from .data import Catalog
+from .data import Catalog, SUPPRESSOR_CATEGORY
 
 
 _WEAPON = "5422acb9af1c889c16000029"
@@ -49,7 +49,7 @@ def magazine_capacity(catalog: Catalog, template_id: str) -> int:
     return capacity
 
 
-def evaluate_build(catalog: Catalog, build: dict) -> dict[str, Any]:
+def evaluate_build(catalog: Catalog, build: dict, *, require_suppressor: bool = False) -> dict[str, Any]:
     """Evaluate unfolded template stats without ammo, skills, or game mutation.
 
     Raw client conflicts use exact template IDs; Compatibility additionally
@@ -57,6 +57,8 @@ def evaluate_build(catalog: Catalog, build: dict) -> dict[str, Any]:
     Weapon.GetCurrentMagazine only uses the root's direct mod_magazine slot;
     its virtual MaxCount is evaluated without nested or linked weapon magazines.
     """
+    if not isinstance(require_suppressor, bool):
+        raise ValueError("require_suppressor must be a boolean")
     if not isinstance(build, dict):
         raise ValueError("build root must be a node object")
     if "slot" not in build or build["slot"] is not None:
@@ -73,6 +75,7 @@ def evaluate_build(catalog: Catalog, build: dict) -> dict[str, Any]:
     ergonomics_modifiers: list[Fraction] = []
     parts: list[dict[str, Any]] = []
     has_launcher = False
+    has_suppressor = False
     current_capacity = 0
     pending = [(build, root_id, True)]
 
@@ -106,6 +109,8 @@ def evaluate_build(catalog: Catalog, build: dict) -> dict[str, Any]:
             recoil_modifiers.append(recoil)
             ergonomics_modifiers.append(ergonomics)
             has_launcher |= catalog.is_a(template_id, _LAUNCHER)
+            if require_suppressor and catalog.is_a(template_id, SUPPRESSOR_CATEGORY):
+                has_suppressor = True
             parts.append(
                 {
                     "template_id": template_id,
@@ -146,6 +151,9 @@ def evaluate_build(catalog: Catalog, build: dict) -> dict[str, Any]:
             if slot.get("_required", False) and slot_name not in occupied:
                 raise ValueError(f"{path}: required slot {slot_name!r} is empty")
         pending.extend(reversed(next_nodes))
+
+    if require_suppressor and not has_suppressor:
+        raise ValueError("build requires an installed suppressor subtype")
 
     # Count instances rather than deduplicating template IDs: two copies of a
     # self-conflicting template conflict, but one does not conflict with itself.
